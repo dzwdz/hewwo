@@ -45,7 +45,7 @@ bufio_init(void)
 }
 
 int
-bufio_read(Bufio *bi, int fd, void (*callback)(const char *s))
+bufio_read(Bufio *bi, int fd, void (*callback)(char *s))
 {
 	assert(memchr(bi->buf, '\r', bi->pos) == NULL);
 

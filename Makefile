@@ -1,6 +1,9 @@
-CFLAGS = -Wall -Wextra -Wpedantic -g
+CFLAGS = -Wall -Wextra -g
 
-OBJS := main.o net.o linenoise/linenoise.o
+OBJS := main.o \
+        irc.o \
+        net.o \
+        linenoise/linenoise.o
 
 newbirc: $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^

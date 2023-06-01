@@ -8,4 +8,4 @@ typedef struct Bufio {
 } Bufio;
 
 Bufio *bufio_init(void);
-int bufio_read(Bufio *bi, int fd, void (*callback)(const char *s));
+int bufio_read(Bufio *bi, int fd, void (*callback)(char *s));
