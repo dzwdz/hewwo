@@ -7,10 +7,12 @@ irc_parsemsg(char *s, IRCMsg *im)
 	memset(im, 0, sizeof(*im));
 
 	if (*s == ':') {
-		im->prefix = s+1;
-		while (*s != '\0' && *s != ' ') s++;
-		if (*s == '\0') {
-			return false;
+		im->user = s+1;
+		for (;;) {
+			if (*s == '\0') return false; /* invalid message */
+			if (*s == '!') *s = '\0'; /* username ended */
+			if (*s == ' ') break; /* prefix ended */
+			s++;
 		}
 		*s++ = '\0';
 	}

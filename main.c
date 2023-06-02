@@ -10,6 +10,9 @@ struct {
 	struct linenoiseState ls;
 	int fd;
 
+	char *cur_chan;
+	char *nick;
+
 	bool did_print; /* for lnprintf */
 } G;
 
@@ -22,12 +25,14 @@ struct {
 	printf(__VA_ARGS__);\
 })
 
+// general TODO: connection state machine
+
 static void
 in_net(char *s)
 {
 	IRCMsg im;
 	char *cmd;
-	lnprintf("<= %s\r\n", s);
+	// lnprintf("<= %s\r\n", s);
 
 	if (!irc_parsemsg(s, &im)) return;
 	cmd = im.argv[0];
@@ -38,12 +43,12 @@ in_net(char *s)
 		// TODO the user should never see this, there should be friendly
 		// strings for all errors
 		lnprintf("IRC error: %s\r\n", im.argv[im.argc-1]);
-	}
-
-
-	if (G.did_print) {
-		linenoiseShow(&G.ls);
-		G.did_print = false;
+	} else if (!strcmp(cmd, "PRIVMSG")) {
+		if (!strcmp(im.argv[1], G.cur_chan)) {
+			lnprintf("<%s> %s\r\n", im.user, im.argv[2]);
+		}
+	} else if (!strcmp(cmd, "JOIN") && !strcmp(im.argv[1], G.cur_chan)) {
+		lnprintf("--> %s has joined %s\r\n", im.user, im.argv[1]);
 	}
 }
 
@@ -56,20 +61,41 @@ in_user(char *line)
 		if (args) *args++ = '\0';
 
 		if (!strcmp(cmd, "nick")) {
+			// TODO store old nick in case of failure
+			free(G.nick);
+			G.nick = strdup(args);
 			dprintf(G.fd, "NICK %s\r\n", args);
 		} else if (!strcmp(cmd, "join")) {
 			dprintf(G.fd, "JOIN %s\r\n", args);
+			free(G.cur_chan);
+			G.cur_chan = strdup(args);
 		} else {
-			printf("unknown command \"%s\" :(\r\n", cmd);
+			lnprintf("unknown command \"%s\" :(\r\n", cmd);
 		}
+	} else if (!G.cur_chan) {
+		lnprintf("you need to /join a channel before chatting\r\n");
 	} else {
-		printf("=> %s\r\n", line);
-		dprintf(G.fd, "%s\r\n", line);
+		// TODO validate chan connection / name
+		lnprintf("<%s> %s\r\n", G.nick, line);
+		dprintf(G.fd, "PRIVMSG %s :%s\r\n", G.cur_chan, line);
 	}
 }
 
+const char *
+get_prompt(void)
+{
+	static char *prompt = NULL;
+	const char *chan = G.cur_chan ? G.cur_chan : "[server]";
+
+	free(prompt);
+	prompt = malloc(strlen(chan) + 3);
+	strcpy(prompt, chan);
+	strcat(prompt, ": ");
+	return prompt;
+}
+
 void
-mainloop(const char *host, const char *port, const char *username)
+mainloop(const char *host, const char *port)
 {
 	static char lsbuf[512];
 	Bufio *bi;
@@ -82,9 +108,9 @@ mainloop(const char *host, const char *port, const char *username)
 
 	bi = bufio_init();
 	dprintf(G.fd, "USER username hostname svname :Real Name\r\n");
-	dprintf(G.fd, "NICK %s\r\n", username);
+	dprintf(G.fd, "NICK %s\r\n", G.nick);
 
-	linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, ": ");
+	linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, get_prompt());
 
 	for (;;) {
 		fd_set rfds;
@@ -110,10 +136,14 @@ mainloop(const char *host, const char *port, const char *username)
 			}
 			in_user(line);
 			linenoiseFree(line);
-			linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, ": ");
+			linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, get_prompt());
 		}
 		if (FD_ISSET(G.fd, &rfds)) {
 			bufio_read(bi, G.fd, in_net);
+		}
+		if (G.did_print) {
+			linenoiseShow(&G.ls);
+			G.did_print = false;
 		}
 	}
 }
@@ -125,7 +155,8 @@ main()
 	if (username == NULL) {
 		username = "townie";
 	}
+	G.nick = strdup(username);
 
 	printf("hi! i'm an irc client. please give me a second to connect...\n");
-	mainloop("localhost", "6667", username);
+	mainloop("localhost", "6667");
 }
