@@ -1,5 +1,7 @@
 #include "irc.h"
 #include "linenoise/linenoise.h"
+#include "lua/lauxlib.h"
+#include "lua/lualib.h"
 #include "net.h"
 #include <stdio.h>
 #include <string.h>
@@ -8,10 +10,10 @@
 
 struct {
 	struct linenoiseState ls;
+	lua_State *L;
 	int fd;
 
-	char *cur_chan;
-	char *nick;
+	char *prompt;
 
 	bool did_print; /* for lnprintf */
 } G;
@@ -28,70 +30,35 @@ struct {
 // general TODO: connection state machine
 
 static void
+l_callfn(char *name, char *arg)
+{
+	int base = lua_gettop(G.L);
+	lua_getglobal(G.L, "debug");
+	lua_getfield(G.L, -1, "traceback");
+	lua_remove(G.L, -2); /* remove debug from the stack */
+
+	lua_getglobal(G.L, name);
+	lua_pushstring(G.L, arg);
+	if (lua_pcall(G.L, 1, 0, base+1) != LUA_OK) {
+		linenoiseEditStop(&G.ls);
+		// TODO shouldn't always be fatal
+		printf("I've hit a Lua error :(\n%s\n", lua_tostring(G.L, -1));
+		exit(1);
+	}
+
+	lua_settop(G.L, base);
+}
+
+static void
 in_net(char *s)
 {
-	IRCMsg im;
-	char *cmd;
-	// lnprintf("<= %s\r\n", s);
-
-	if (!irc_parsemsg(s, &im)) return;
-	cmd = im.argv[0];
-
-	if (!strcmp(cmd, RPL_ENDOFMOTD) || !strcmp(cmd, ERR_NOMOTD)) {
-		lnprintf("ok, i'm connected!\r\n");
-	} else if (cmd[0] == '4') {
-		// TODO the user should never see this, there should be friendly
-		// strings for all errors
-		lnprintf("IRC error: %s\r\n", im.argv[im.argc-1]);
-	} else if (!strcmp(cmd, "PRIVMSG")) {
-		if (!strcmp(im.argv[1], G.cur_chan)) {
-			lnprintf("<%s> %s\r\n", im.user, im.argv[2]);
-		}
-	} else if (!strcmp(cmd, "JOIN") && !strcmp(im.argv[1], G.cur_chan)) {
-		lnprintf("--> %s has joined %s\r\n", im.user, im.argv[1]);
-	}
+	l_callfn("in_net", s);
 }
 
 static void
 in_user(char *line)
 {
-	if (line[0] == '/') {
-		char *cmd = line+1;
-		char *args = strchr(cmd, ' ');
-		if (args) *args++ = '\0';
-
-		if (!strcmp(cmd, "nick")) {
-			// TODO store old nick in case of failure
-			free(G.nick);
-			G.nick = strdup(args);
-			dprintf(G.fd, "NICK %s\r\n", args);
-		} else if (!strcmp(cmd, "join")) {
-			dprintf(G.fd, "JOIN %s\r\n", args);
-			free(G.cur_chan);
-			G.cur_chan = strdup(args);
-		} else {
-			lnprintf("unknown command \"%s\" :(\r\n", cmd);
-		}
-	} else if (!G.cur_chan) {
-		lnprintf("you need to /join a channel before chatting\r\n");
-	} else {
-		// TODO validate chan connection / name
-		lnprintf("<%s> %s\r\n", G.nick, line);
-		dprintf(G.fd, "PRIVMSG %s :%s\r\n", G.cur_chan, line);
-	}
-}
-
-const char *
-get_prompt(void)
-{
-	static char *prompt = NULL;
-	const char *chan = G.cur_chan ? G.cur_chan : "[server]";
-
-	free(prompt);
-	prompt = malloc(strlen(chan) + 3);
-	strcpy(prompt, chan);
-	strcat(prompt, ": ");
-	return prompt;
+	l_callfn("in_user", line);
 }
 
 void
@@ -107,10 +74,10 @@ mainloop(const char *host, const char *port)
 	}
 
 	bi = bufio_init();
-	dprintf(G.fd, "USER username hostname svname :Real Name\r\n");
-	dprintf(G.fd, "NICK %s\r\n", G.nick);
+	l_callfn("init", "Thank you for playing Wing Commander!");
 
-	linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, get_prompt());
+	linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, G.prompt);
+	G.did_print = false;
 
 	for (;;) {
 		fd_set rfds;
@@ -136,7 +103,7 @@ mainloop(const char *host, const char *port)
 			}
 			in_user(line);
 			linenoiseFree(line);
-			linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, get_prompt());
+			linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, G.prompt);
 		}
 		if (FD_ISSET(G.fd, &rfds)) {
 			bufio_read(bi, G.fd, in_net);
@@ -148,15 +115,65 @@ mainloop(const char *host, const char *port)
 	}
 }
 
+
+static int
+l_print(lua_State *L)
+{
+	/* based on luaB_print */
+	if (!G.did_print) {
+		linenoiseHide(&G.ls);
+		G.did_print = true;
+	}
+
+	int n = lua_gettop(L); 
+	for (int i = 1; i <= n; i++) {
+		size_t l;
+		const char *s = luaL_tolstring(L, i, &l);
+		if (i > 1) {
+			lua_writestring("\t", 1);
+		}
+		lua_writestring(s, l);
+		lua_pop(L, 1);
+	}
+	lua_writestring("\r\n", 2);
+	fflush(stdout);
+	return 0;
+}
+
+static int
+l_setprompt(lua_State *L)
+{
+	free(G.prompt);
+	G.prompt = strdup(lua_tolstring(L, 1, NULL));
+	return 0;
+}
+
+static int
+l_writesock(lua_State *L)
+{
+	/* automatically inserts the \r\n */
+	const char *s = luaL_checkstring(L, 1);
+	dprintf(G.fd, "%s\r\n", s);
+	return 0;
+}
+
 int
 main()
 {
-	char *username = getenv("USER");
-	if (username == NULL) {
-		username = "townie";
+	G.L = luaL_newstate();
+	G.did_print = true;
+	G.prompt = strdup(": ");
+
+	luaL_openlibs(G.L);
+	lua_register(G.L, "print", l_print);
+	lua_register(G.L, "setprompt", l_setprompt);
+	lua_register(G.L, "writesock", l_writesock);
+	if (luaL_dofile(G.L, "main.lua")) {
+		printf("I've hit a Lua error :(\n%s\n", lua_tostring(G.L, -1));
+		exit(1);
 	}
-	G.nick = strdup(username);
 
 	printf("hi! i'm an irc client. please give me a second to connect...\n");
 	mainloop("localhost", "6667");
+	lua_close(G.L);
 }
