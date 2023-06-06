@@ -1,5 +1,5 @@
 -- the C api provides: writesock, setprompt
---           requires: init, in_net, in_user
+--           requires: init, in_net, in_user, completion
 
 require "irc"
 require "commands"
@@ -67,6 +67,21 @@ function in_user(line)
 	else
 		print("you need to enter a channel to chat. try \"/join #tildetown\"")
 	end
+end
+
+function completion(line)
+	local tbl = {}
+	if string.sub(line, 1, 1) == "/" and not string.find(line, " ") then
+		local cmd = string.sub(line, 2)
+		local clen = string.len(line)-1
+		for k, _ in pairs(commands) do
+			local klen = string.len(k)
+			if clen < klen and cmd == string.sub(k, 1, clen) then
+				table.insert(tbl, "/"..k)
+			end
+		end
+	end
+	return tbl
 end
 
 function open_chan(chan)

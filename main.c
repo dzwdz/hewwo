@@ -116,6 +116,41 @@ mainloop(const char *host, const char *port)
 	}
 }
 
+static void
+completion(const char *buf, linenoiseCompletions *lc)
+{
+	int base = lua_gettop(G.L);
+	lua_getglobal(G.L, "debug");
+	lua_getfield(G.L, -1, "traceback");
+	lua_remove(G.L, -2); /* remove debug from the stack */
+
+	if (lua_getglobal(G.L, "completion") == LUA_TFUNCTION) {
+		lua_pushstring(G.L, buf);
+		if (lua_pcall(G.L, 1, 1, base+1) == LUA_OK) {
+			int len = 0;
+			if (!lua_isnil(G.L, -1)) {
+				luaL_checktype(G.L, -1, LUA_TTABLE);
+				len = luaL_len(G.L, -1);
+				for (int i = 1; i <= len; i++) {
+					lua_geti(G.L, -1, i);
+					linenoiseAddCompletion(lc, lua_tostring(G.L, -1));
+					lua_pop(G.L, 1);
+				}
+			}
+			if (len == 0) {
+				/* required to prevent raw tabs from getting inserted */
+				linenoiseAddCompletion(lc, buf);
+			}
+		} else {
+			linenoiseEditStop(&G.ls);
+			// TODO shouldn't be fatal
+			printf("I've hit a Lua error :(\n%s\n", lua_tostring(G.L, -1));
+			exit(1);
+		}
+	}
+
+	lua_settop(G.L, base);
+}
 
 static int
 l_print(lua_State *L)
@@ -185,6 +220,8 @@ main()
 		printf("I've hit a Lua error :(\n%s\n", lua_tostring(G.L, -1));
 		exit(1);
 	}
+
+	linenoiseSetCompletionCallback(completion);
 
 	printf("hi! i'm an irc client. please give me a second to connect...\n");
 	mainloop("localhost", "6667");
