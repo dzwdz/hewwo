@@ -61,3 +61,19 @@ commands["action"] = function(line, ...)
 	writecmd("PRIVMSG", conn.chan, msg)
 end
 commands["me"] = commands["action"]
+
+commands["lua"] = function(line, ...)
+	line = string.gsub(line, "^[^ ]* *", "")
+	local fn, err = load(line, "=(user)")
+	if fn then
+		fn()
+		return
+	end
+	-- try wrapping in print()
+	local fn, _ = load("print("..line..")", "=(user)")
+	if fn then
+		fn()
+		return
+	end
+	print(err)
+end

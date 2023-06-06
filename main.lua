@@ -4,19 +4,16 @@
 require "irc"
 require "commands"
 require "util"
+-- also see eof
 
 conn = {
 	user = nil,
 	pm_hint = nil,
 }
-config = {
-	debug = false,
-	colors = {"31", "32", "33", "34", "35", "36"},
-	timefmt = "\x1b[38;5;8m%H:%M\x1b[0m"
-}
 
 function init()
-	conn.user = os.getenv("USER") or "townie"
+	conn.user = config.nick or os.getenv("USER") or "townie"
+	printf("logging you in as %s. if you don't like that, try /nick", hi(conn.user))
 	writecmd("USER", conn.user, "localhost", "servername", "Real Name")
 	writecmd("NICK", conn.user)
 
@@ -32,7 +29,7 @@ function in_net(line)
 	local cmd = string.lower(args[1])
 
 	if cmd == RPL_ENDOFMOTD or cmd == ERR_NOMOTD then
-		print("ok, i'm connected!")
+		print("ok, i'm connected! try \"/join #tildetown\"")
 	elseif string.sub(cmd, 1, 1) == "4" then
 		-- TODO the user should never see this. they should instead see friendlier
 		-- messages with instructions how to proceed
@@ -89,8 +86,8 @@ function message(from, to, msg, ts)
 		end
 		printf("%s [%s -> %s] %s", prefix, hi(from), hi(to), msg)
 		if not conn.pm_hint and from ~= conn.user then
-			print("hint: you've just received a private message!")
-			print("      try \"/msg "..from.." [your reply]\"")
+			print("(hint: you've just received a private message!")
+			print("       try \"/msg "..from.." [your reply]\")")
 			conn.pm_hint = true
 		end
 	elseif to == conn.chan then
@@ -103,3 +100,7 @@ function message(from, to, msg, ts)
 		end
 	end
 end
+
+config = {}
+require "config_default"
+require "config" -- last so as to let it override stuff

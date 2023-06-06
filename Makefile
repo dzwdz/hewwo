@@ -3,6 +3,7 @@ CFLAGS = -Wall -Wextra -g
 OBJS := main.o \
         irc.o \
         net.o \
+        xdg.o \
         linenoise/linenoise.o
 
 newbirc: $(OBJS) lua/liblua.a

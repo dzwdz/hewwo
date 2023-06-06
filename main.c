@@ -3,9 +3,10 @@
 #include "lua/lauxlib.h"
 #include "lua/lualib.h"
 #include "net.h"
+#include "xdg.h"
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/select.h>
 
 struct {
@@ -165,6 +166,18 @@ main()
 	G.prompt = strdup(": ");
 
 	luaL_openlibs(G.L);
+
+	/* override package.{c,}path
+	 * i want to avoid depending on cwd (and risking executing random code) */
+	int base = lua_gettop(G.L);
+	lua_getglobal(G.L, "package");
+	lua_pushstring(G.L, get_luapath());
+	lua_setfield(G.L, -2, "path");
+	lua_pushstring(G.L, "");
+	lua_setfield(G.L, -2, "cpath");
+	lua_settop(G.L, base);
+
+	/* prepare the c/lua interface */
 	lua_register(G.L, "print", l_print);
 	lua_register(G.L, "setprompt", l_setprompt);
 	lua_register(G.L, "writesock", l_writesock);
