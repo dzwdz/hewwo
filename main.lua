@@ -9,7 +9,9 @@ require "ringbuf"
 
 conn = {
 	user = nil,
+	chan = nil,
 	pm_hint = nil,
+	chanusers = {},
 }
 buffers = {}
 
@@ -78,24 +80,47 @@ function newcmd(line, remote)
 			-- TODO the user should never see this. they should instead see friendlier
 			-- messages with instructions how to proceed
 			print("irc error: "..args[4])
-		elseif cmd == "ping" then
+		elseif cmd == "PING" then
 			writecmd("PONG", to)
+		elseif cmd == RPL_NAMREPLY then
+			to = args[4]
+			conn.chanusers[to] = conn.chanusers[to] or {}
+			-- TODO incorrect nick parsing
+			-- TODO update on JOIN/PART
+			for nick in string.gmatch(args[5], "[^ ,*?!@]+") do
+				conn.chanusers[to][nick] = true
+			end
 		end
 	end
 end
 
 function completion(line)
 	local tbl = {}
-	if string.sub(line, 1, 1) == "/" and not string.find(line, " ") then
-		local cmd = string.sub(line, 2)
-		local clen = string.len(line)-1
-		for k, _ in pairs(commands) do
-			local klen = string.len(k)
-			if clen < klen and cmd == string.sub(k, 1, clen) then
-				table.insert(tbl, "/"..k)
+	local word = string.match(line, "[^ ]*$") or ""
+	if word == "" then return {} end
+	local wlen = string.len(word)
+	local rest = string.sub(line, 1, -string.len(word)-1)
+
+	local function addfrom(src, prefix, suffix)
+		if not src then return end
+		prefix = prefix or ""
+		suffix = suffix or " "
+		local word = string.sub(word, string.len(prefix) + 1)
+		local wlen = string.len(word)
+		for k, v in pairs(src) do
+			if v and wlen < string.len(k) and word == string.sub(k, 1, wlen) then
+				table.insert(tbl, rest..prefix..k..suffix)
 			end
 		end
 	end
+
+	if word == line then
+		addfrom(conn.chanusers[conn.chan], "", ": ")
+	else
+		addfrom(conn.chanusers[conn.chan])
+	end
+	-- addfrom(buffers) -- TODO this adds internal method names too :(
+	addfrom(commands, "/")
 	return tbl
 end
 
