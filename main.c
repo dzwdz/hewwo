@@ -1,9 +1,9 @@
-#include "irc.h"
 #include "linenoise/linenoise.h"
 #include "lua/lauxlib.h"
 #include "lua/lualib.h"
 #include "net.h"
 #include "xdg.h"
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
