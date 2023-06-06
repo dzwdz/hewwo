@@ -19,9 +19,10 @@ commands["join"] = function(_, ...)
 	end
 	for i, v in ipairs({...}) do
 		writecmd("JOIN", v)
+		buffers:make(v)
 	end
 	local last = ({...})[#{...}] -- wonderful syntax
-	open_chan(last)
+	buffers:switch(last)
 end
 
 commands["quit"] = function(line, ...)
@@ -38,7 +39,6 @@ commands["msg"] = function(line, user, ...)
 		return
 	end
 	local msg = string.gsub(line, "^[^ ]* *[^ ]* *", "")
-	message(conn.user, user, msg)
 	writecmd("PRIVMSG", user, msg)
 	conn.pm_hint = true
 end
@@ -50,14 +50,13 @@ commands["buf"] = function(line, ...)
 		return
 	end
 	local chan = ...
-	open_chan(chan)
+	buffers:switch(chan)
 end
 commands["b"] = commands["buf"]
 commands["buffer"] = commands["buf"]
 
 commands["action"] = function(line, ...)
 	local msg = "\1ACTION " .. string.gsub(line, "^[^ ]* *", "")
-	message(conn.user, conn.chan, msg)
 	writecmd("PRIVMSG", conn.chan, msg)
 end
 commands["me"] = commands["action"]

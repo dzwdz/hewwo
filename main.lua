@@ -4,12 +4,14 @@
 require "irc"
 require "commands"
 require "util"
+require "ringbuf"
 -- also see eof
 
 conn = {
 	user = nil,
 	pm_hint = nil,
 }
+buffers = {}
 
 function init()
 	conn.user = config.nick or os.getenv("USER") or "townie"
@@ -24,23 +26,7 @@ function in_net(line)
 	if config.debug then
 		print("<=", line)
 	end
-
-	local prefix, user, args = parsecmd(line)
-	local cmd = string.lower(args[1])
-
-	if cmd == RPL_ENDOFMOTD or cmd == ERR_NOMOTD then
-		print("ok, i'm connected! try \"/join #tildetown\"")
-	elseif string.sub(cmd, 1, 1) == "4" then
-		-- TODO the user should never see this. they should instead see friendlier
-		-- messages with instructions how to proceed
-		print("irc error: "..args[4])
-	elseif cmd == "privmsg" then
-		message(user, args[2], args[3])
-	elseif cmd == "join" then
-		printf("--> %s has joined %s", hi(user), args[2])
-	elseif cmd == "ping" then
-		writecmd("PONG", args[2])
-	end
+	newcmd(line, true)
 end
 
 function in_user(line)
@@ -62,10 +48,39 @@ function in_user(line)
 			end
 		end
 	elseif conn.chan then
-		message(conn.user, conn.chan, line)
 		writecmd("PRIVMSG", conn.chan, line)
 	else
 		print("you need to enter a channel to chat. try \"/join #tildetown\"")
+	end
+end
+
+-- Called for new commands, both from the server and from the client.
+function newcmd(line, remote)
+	printcmd(line, os.time())
+
+	local prefix, from, args = parsecmd(line)
+	local cmd = string.upper(args[1])
+	local to = args[2] -- not always valid!
+
+	if cmd == "JOIN" or cmd == "PART" then
+		buffers:append(to, line)
+	elseif cmd == "PRIVMSG" then
+		if to ~= conn.user then
+			buffers:append(to, line)
+		end
+	end
+
+	if remote then
+		if cmd == RPL_ENDOFMOTD or cmd == ERR_NOMOTD then
+			-- NOT in printcmd, as it's more of a reaction to state change
+			print("ok, i'm connected! try \"/join #tildetown\"")
+		elseif string.sub(cmd, 1, 1) == "4" then
+			-- TODO the user should never see this. they should instead see friendlier
+			-- messages with instructions how to proceed
+			print("irc error: "..args[4])
+		elseif cmd == "ping" then
+			writecmd("PONG", to)
+		end
 	end
 end
 
@@ -84,36 +99,80 @@ function completion(line)
 	return tbl
 end
 
-function open_chan(chan)
-	printf("--- switched to %s", chan)
+function buffers:switch(chan)
+	printf("--- switching to %s", chan)
 	conn.chan = chan
 	setprompt(chan..": ")
+	if buffers[chan] then
+		-- TODO remember last seen message to prevent spam?
+		for ent in buffers[chan]:iter() do
+			printcmd(ent.line, ent.ts)
+		end
+	else
+		-- TODO error out
+		print("-- (creating buffer)")
+	end
 end
 
-function message(from, to, msg, ts)
-	local prefix = os.date(config.timefmt, ts or os.time())
+function buffers:append(buf, line, ts)
+	ts = ts or os.time()
+	self:make(buf)
+	self[buf]:push({line=line, ts=ts})
+end
 
-	-- TODO strip unprintable
-	if string.sub(to, 1, 1) ~= "#" then -- direct message, always print
-		if string.sub(msg, 1, 7) == "\1ACTION" then
-			msg = string.sub(msg, 9)
-			msg = string.format("* %s %s", hi(from), msg)
-		end
-		printf("%s [%s -> %s] %s", prefix, hi(from), hi(to), msg)
-		if not conn.pm_hint and from ~= conn.user then
-			print("(hint: you've just received a private message!")
-			print("       try \"/msg "..from.." [your reply]\")")
-			conn.pm_hint = true
-		end
-	elseif to == conn.chan then
-		-- string.len("ACTION ") == 7
-		if string.sub(msg, 1, 7) == "\1ACTION" then
-			msg = string.sub(msg, 9)
-			printf("%s * %s %s", prefix, hi(from), msg)
-		else
-			printf("%s <%s> %s", prefix, hi(from), msg)
-		end
+function buffers:make(buf)
+	if not self[buf] then
+		self[buf] = ringbuf:new(200)
 	end
+end
+
+-- Prints an IRC command, if applicable.
+-- returns true if anything was output, false otherwise
+function printcmd(rawline, ts)
+	local timefmt = os.date(config.timefmt, ts)
+
+	local prefix, from, args = parsecmd(rawline)
+	local cmd = string.upper(args[1])
+	local to = args[2] -- not always valid!
+
+	if cmd == "PRIVMSG" then
+		local msg = args[3]
+
+		-- TODO strip unprintable
+		if string.sub(to, 1, 1) ~= "#" then -- direct message, always print
+			if string.sub(msg, 1, 7) == "\1ACTION" then
+				msg = string.sub(msg, 9)
+				msg = string.format("* %s %s", hi(from), msg)
+			end
+			printf("%s [%s -> %s] %s", timefmt, hi(from), hi(to), msg)
+			if not conn.pm_hint and from ~= conn.user then
+				print("(hint: you've just received a private message!")
+				print("       try \"/msg "..from.." [your reply]\")")
+				conn.pm_hint = true
+			end
+			return true
+		elseif to == conn.chan then
+			-- string.len("ACTION ") == 7
+			if string.sub(msg, 1, 7) == "\1ACTION" then
+				msg = string.sub(msg, 9)
+				printf("%s * %s %s", timefmt, hi(from), msg)
+			else
+				printf("%s <%s> %s", timefmt, hi(from), msg)
+			end
+			return true
+		else
+			return false
+		end
+	elseif cmd == "JOIN" then
+		if to ~= conn.chan then return false end
+		printf("%s --> %s has joined %s", timefmt, hi(from), to)
+		return true
+	elseif cmd == "PART" then
+		if to ~= conn.chan then return false end
+		printf("%s <-- %s has left %s", timefmt, hi(from), to)
+		return true
+	end
+	return false
 end
 
 config = {}

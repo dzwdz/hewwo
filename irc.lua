@@ -18,6 +18,11 @@ function writecmd(...)
 		print("=>", cmd)
 	end
 	writesock(cmd)
+
+	local verb = string.upper(({...})[1])
+	if verb ~= "JOIN" and verb ~= "PART" then
+		newcmd(":"..conn.user.."!@ "..cmd, false)
+	end -- else will get echoed back at us anyways
 end
 
 function parsecmd(line)
