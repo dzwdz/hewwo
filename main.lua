@@ -85,23 +85,38 @@ function in_net(line)
 		-- TODO printf?
 		if args[2] == conn.chan then
 			print(string.format("<%s> %s", user, args[3]))
+		elseif string.sub(args[2], 1, 1) ~= "#" then
+			print(string.format("[%s -> %s] %s", user, args[2], args[3]))
+			if not conn.pm_hint then
+				print("hint: you've just received a private message!")
+				print("      try \"/msg "..user.." [your reply]\"")
+				conn.pm_hint = true
+			end
 		end
 	elseif cmd == "join" then
 		print(string.format("--> %s has joined %s", user, args[2]))
+	elseif cmd == "ping" then
+		writecmd("PONG", args[2])
 	end
 end
 
 function in_user(line)
 	if string.sub(line, 1, 1) == "/" then
-		local args = {}
-		for arg in string.gmatch(string.sub(line, 2), "[^ ]+") do
-			table.insert(args, arg)
-		end
-		local cmd = commands[string.lower(args[1])]
-		if cmd then
-			cmd(line, table.unpack(args, 2))
+		if string.sub(line, 2, 2) == "/" then
+			line = string.sub(line, 2)
+			print(string.format("<%s> %s", conn.user, line))
+			writecmd("PRIVMSG", conn.chan, line)
 		else
-			print("unknown command \"/"..args[1].."\"")
+			local args = {}
+			for arg in string.gmatch(string.sub(line, 2), "[^ ]+") do
+				table.insert(args, arg)
+			end
+			local cmd = commands[string.lower(args[1])]
+			if cmd then
+				cmd(line, table.unpack(args, 2))
+			else
+				print("unknown command \"/"..args[1].."\"")
+			end
 		end
 	elseif conn.chan then
 		print(string.format("<%s> %s", conn.user, line))
@@ -147,3 +162,14 @@ commands["quit"] = function(line, ...)
 	end
 	print("if you are sure you want to exit, type \"/QUIT\" (all caps)")
 end
+
+commands["msg"] = function(line, user, ...)
+	if not user then
+		print("usage: /msg [user] blah blah blah")
+		return
+	end
+	local msg = string.gsub(line, "^[^ ]* *[^ ]* *", "")
+	print(string.format("[%s -> %s] %s", conn.user, user, msg))
+	writecmd("PRIVMSG", user, msg)
+end
+commands["q"] = commands["msg"]
