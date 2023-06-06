@@ -1,33 +1,16 @@
 -- the C api provides: writesock, setprompt
 --           requires: init, in_net, in_user
 
--- yes this needs to be organized better. i just wanted to get the port done first
+require "irc"
+require "commands"
+require "util"
 
-conn = {}
-commands = {}
+conn = {
+	user = nil,
+
+	pm_hint = nil,
+}
 options = {}
-
-RPL_ENDOFMOTD = "376"
-ERR_NOMOTD = "422"
-ERR_NICKNAMEINUSE = "433"
-
-function writecmd(...)
-	local cmd = ""
-	-- TODO enforce no spaces
-	for i, v in ipairs({...}) do
-		if i ~= 1 then
-			cmd = cmd .. " "
-		end
-		if i == #{...} then
-			cmd = cmd .. ":"
-		end
-		cmd = cmd .. v
-	end
-	if options.debug then
-		print("=>", cmd)
-	end
-	writesock(cmd)
-end
 
 function init()
 	conn.user = os.getenv("USER") or "townie"
@@ -42,37 +25,7 @@ function in_net(line)
 		print("<=", line)
 	end
 
-	local prefix = nil
-	local user = nil
-	local args = {}
-
-	-- parse the command
-	local pos = 1
-	if string.sub(line, 1, 1) == ":" then
-		pos = string.find(line, " ")
-		if not pos then return end -- invalid message
-		prefix = string.sub(line, 2, pos-1)
-		pos = pos+1
-
-		excl = string.find(prefix, "!")
-		if excl then
-			user = string.sub(prefix, 1, excl-1)
-		end
-	end
-	while pos <= string.len(line) do
-		local nextpos = nil
-		if string.sub(line, pos, pos) ~= ":" then
-			nextpos = string.find(line, " ", pos+1)
-		else
-			pos = pos+1
-		end
-		if not nextpos then
-			nextpos = string.len(line)+1
-		end
-		table.insert(args, string.sub(line, pos, nextpos-1))
-		pos = nextpos+1
-	end
-
+	local prefix, user, args = parsecmd(line)
 	local cmd = string.lower(args[1])
 
 	if cmd == RPL_ENDOFMOTD or cmd == ERR_NOMOTD then
@@ -82,19 +35,9 @@ function in_net(line)
 		-- messages with instructions how to proceed
 		print("irc error: "..args[4])
 	elseif cmd == "privmsg" then
-		-- TODO printf?
-		if args[2] == conn.chan then
-			print(string.format("<%s> %s", user, args[3]))
-		elseif string.sub(args[2], 1, 1) ~= "#" then
-			print(string.format("[%s -> %s] %s", user, args[2], args[3]))
-			if not conn.pm_hint then
-				print("hint: you've just received a private message!")
-				print("      try \"/msg "..user.." [your reply]\"")
-				conn.pm_hint = true
-			end
-		end
+		message(user, args[2], args[3])
 	elseif cmd == "join" then
-		print(string.format("--> %s has joined %s", user, args[2]))
+		printf("--> %s has joined %s", user, args[2])
 	elseif cmd == "ping" then
 		writecmd("PONG", args[2])
 	end
@@ -104,7 +47,7 @@ function in_user(line)
 	if string.sub(line, 1, 1) == "/" then
 		if string.sub(line, 2, 2) == "/" then
 			line = string.sub(line, 2)
-			print(string.format("<%s> %s", conn.user, line))
+			message(conn.user, conn.chan, line)
 			writecmd("PRIVMSG", conn.chan, line)
 		else
 			local args = {}
@@ -119,7 +62,7 @@ function in_user(line)
 			end
 		end
 	elseif conn.chan then
-		print(string.format("<%s> %s", conn.user, line))
+		message(conn.user, conn.chan, line)
 		writecmd("PRIVMSG", conn.chan, line)
 	else
 		print("you need to enter a channel to chat. try \"/join #tildetown\"")
@@ -131,45 +74,15 @@ function open_chan(chan)
 	setprompt(chan..": ")
 end
 
-commands["nick"] = function(_, ...)
-	if #{...} ~= 1 then
-		print("/nick takes exactly one argument")
-		return
+function message(from, to, msg)
+	if string.sub(to, 1, 1) ~= "#" then -- direct message, always print
+		printf("[%s -> %s] %s", from, to, msg)
+		if not conn.pm_hint and from ~= conn.user then
+			print("hint: you've just received a private message!")
+			print("      try \"/msg "..from.." [your reply]\"")
+			conn.pm_hint = true
+		end
+	elseif to == conn.chan then
+		printf("<%s> %s", from, msg)
 	end
-	local nick = ...
-	-- TODO validate nick
-	writecmd("NICK", nick)
-	conn.user = nick
-	print("your nick is now "..nick)
 end
-
-commands["join"] = function(_, ...)
-	if #{...} == 0 then
-		print("missing argument. try /join #tildetown")
-		return
-	end
-	for i, v in ipairs({...}) do
-		writecmd("JOIN", v)
-	end
-	local last = ({...})[#{...}] -- wonderful syntax
-	open_chan(last)
-end
-
-commands["quit"] = function(line, ...)
-	if line == "/QUIT" then
-		writecmd("QUIT")
-		os.exit(0)
-	end
-	print("if you are sure you want to exit, type \"/QUIT\" (all caps)")
-end
-
-commands["msg"] = function(line, user, ...)
-	if not user then
-		print("usage: /msg [user] blah blah blah")
-		return
-	end
-	local msg = string.gsub(line, "^[^ ]* *[^ ]* *", "")
-	print(string.format("[%s -> %s] %s", conn.user, user, msg))
-	writecmd("PRIVMSG", user, msg)
-end
-commands["q"] = commands["msg"]
