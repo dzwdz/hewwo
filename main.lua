@@ -7,10 +7,13 @@ require "util"
 
 conn = {
 	user = nil,
-
 	pm_hint = nil,
 }
-options = {}
+config = {
+	debug = false,
+	colors = {"31", "32", "33", "34", "35", "36"},
+	timefmt = "\x1b[38;5;8m%H:%M\x1b[0m"
+}
 
 function init()
 	conn.user = os.getenv("USER") or "townie"
@@ -21,7 +24,7 @@ function init()
 end
 
 function in_net(line)
-	if options.debug then
+	if config.debug then
 		print("<=", line)
 	end
 
@@ -37,7 +40,7 @@ function in_net(line)
 	elseif cmd == "privmsg" then
 		message(user, args[2], args[3])
 	elseif cmd == "join" then
-		printf("--> %s has joined %s", user, args[2])
+		printf("--> %s has joined %s", hi(user), args[2])
 	elseif cmd == "ping" then
 		writecmd("PONG", args[2])
 	end
@@ -70,19 +73,33 @@ function in_user(line)
 end
 
 function open_chan(chan)
+	printf("--- switched to %s", chan)
 	conn.chan = chan
 	setprompt(chan..": ")
 end
 
-function message(from, to, msg)
+function message(from, to, msg, ts)
+	local prefix = os.date(config.timefmt, ts or os.time())
+
+	-- TODO strip unprintable
 	if string.sub(to, 1, 1) ~= "#" then -- direct message, always print
-		printf("[%s -> %s] %s", from, to, msg)
+		if string.sub(msg, 1, 7) == "\1ACTION" then
+			msg = string.sub(msg, 9)
+			msg = string.format("* %s %s", hi(from), msg)
+		end
+		printf("%s [%s -> %s] %s", prefix, hi(from), hi(to), msg)
 		if not conn.pm_hint and from ~= conn.user then
 			print("hint: you've just received a private message!")
 			print("      try \"/msg "..from.." [your reply]\"")
 			conn.pm_hint = true
 		end
 	elseif to == conn.chan then
-		printf("<%s> %s", from, msg)
+		-- string.len("ACTION ") == 7
+		if string.sub(msg, 1, 7) == "\1ACTION" then
+			msg = string.sub(msg, 9)
+			printf("%s * %s %s", prefix, hi(from), msg)
+		else
+			printf("%s <%s> %s", prefix, hi(from), msg)
+		end
 	end
 end

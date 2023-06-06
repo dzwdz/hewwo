@@ -9,7 +9,7 @@ commands["nick"] = function(_, ...)
 	-- TODO validate nick
 	writecmd("NICK", nick)
 	conn.user = nick
-	print("your nick is now "..nick)
+	print("your nick is now "..hi(nick))
 end
 
 commands["join"] = function(_, ...)
@@ -38,7 +38,7 @@ commands["msg"] = function(line, user, ...)
 		return
 	end
 	local msg = string.gsub(line, "^[^ ]* *[^ ]* *", "")
-	print(string.format("[%s -> %s] %s", conn.user, user, msg))
+	message(conn.user, user, msg)
 	writecmd("PRIVMSG", user, msg)
 	conn.pm_hint = true
 end
@@ -54,3 +54,10 @@ commands["buf"] = function(line, ...)
 end
 commands["b"] = commands["buf"]
 commands["buffer"] = commands["buf"]
+
+commands["action"] = function(line, ...)
+	local msg = "\1ACTION " .. string.gsub(line, "^[^ ]* *", "")
+	message(conn.user, conn.chan, msg)
+	writecmd("PRIVMSG", conn.chan, msg)
+end
+commands["me"] = commands["action"]

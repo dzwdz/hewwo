@@ -14,7 +14,7 @@ function writecmd(...)
 		end
 		cmd = cmd .. v
 	end
-	if options.debug then
+	if config.debug then
 		print("=>", cmd)
 	end
 	writesock(cmd)
