@@ -1,4 +1,5 @@
 CFLAGS = -Wall -Wextra -g
+LIBS = -lm
 
 OBJS := main.o \
         net.o \
@@ -6,7 +7,7 @@ OBJS := main.o \
         linenoise/linenoise.o
 
 newbirc: $(OBJS) lua/liblua.a
-	$(CC) $(LDFLAGS) -o $@ $^
+	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 .PHONY: clean
 clean:
