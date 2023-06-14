@@ -32,10 +32,11 @@ function in_net(line)
 end
 
 function in_user(line)
+	if line == "" then return end
+
 	if string.sub(line, 1, 1) == "/" then
 		if string.sub(line, 2, 2) == "/" then
 			line = string.sub(line, 2)
-			message(conn.user, conn.chan, line)
 			writecmd("PRIVMSG", conn.chan, line)
 		else
 			local args = {}
@@ -79,7 +80,7 @@ function newcmd(line, remote)
 		elseif string.sub(cmd, 1, 1) == "4" then
 			-- TODO the user should never see this. they should instead see friendlier
 			-- messages with instructions how to proceed
-			print("irc error: "..args[4])
+			printf("irc error %s: %s", cmd, args[#args])
 		elseif cmd == "PING" then
 			writecmd("PONG", to)
 		elseif cmd == RPL_NAMREPLY then
