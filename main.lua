@@ -31,6 +31,7 @@ function in_net(line)
 		print("<=", line)
 	end
 	newcmd(line, true)
+	updateprompt()
 end
 
 function in_user(line)
@@ -57,6 +58,7 @@ function in_user(line)
 	else
 		print("you need to enter a channel to chat. try \"/join #tildetown\"")
 	end
+	updateprompt()
 end
 
 -- Called for new commands, both from the server and from the client.
@@ -136,31 +138,49 @@ function completion(line)
 	return tbl
 end
 
+function updateprompt()
+	local chan = conn.chan or ""
+	local unread = 0
+	for _, buf in pairs(buffers.tbl) do
+		-- TODO this is inefficient
+		-- either compute another way, or call updateprompt() less
+		if buf.unread > 0 then
+			unread = unread + 1
+		end
+	end
+	setprompt(string.format("%d %s: ", unread, chan))
+end
+
 function buffers:switch(chan)
 	printf("--- switching to %s", chan)
 	conn.chan = chan
-	setprompt(chan..": ")
 	if self.tbl[chan] then
 		-- TODO remember last seen message to prevent spam?
 		for ent in self.tbl[chan]:iter() do
 			printcmd(ent.line, ent.ts)
 		end
+		self.tbl[chan].unread = 0
 	else
 		-- TODO error out
 		print("-- (creating buffer)")
 	end
 end
 
-function buffers:append(buf, line, ts)
-	ts = ts or os.time()
+function buffers:append(buf, line)
+	local ts = os.time()
 	self:make(buf)
-	self.tbl[buf]:push({line=line, ts=ts})
+	local b = self.tbl[buf]
+	b:push({line=line, ts=ts})
+	if buf ~= conn.chan then
+		self.tbl[buf].unread = self.tbl[buf].unread + 1
+	end
 end
 
 function buffers:make(buf)
 	if not self.tbl[buf] then
 		self.tbl[buf] = ringbuf:new(200)
 		self.tbl[buf].state = "unknown"
+		self.tbl[buf].unread = 0
 	end
 end
 

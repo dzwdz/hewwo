@@ -81,7 +81,11 @@ commands["buffers"] = function()
 	local total = 0
 	print("You're in:")
 	for k,v in pairs(buffers.tbl) do
-		print(k, v.state)
+		local unread = ""
+		if v.unread > 0 then
+			unread = string.format("(%d unread)", v.unread)
+		end
+		print(k, v.state, unread)
 		total = total + 1
 	end
 	printf("(%d buffers in total)", total)

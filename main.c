@@ -179,8 +179,18 @@ l_print(lua_State *L)
 static int
 l_setprompt(lua_State *L)
 {
+	char *new = lua_tolstring(L, 1, NULL);
+	if (strcmp(new, G.prompt) == 0) {
+		return 0;
+	}
+	new = strdup(new);
+
 	free(G.prompt);
-	G.prompt = strdup(lua_tolstring(L, 1, NULL));
+	G.prompt = new;
+	G.ls.prompt = new;
+	G.ls.plen = strlen(new);
+	linenoiseHide(&G.ls);
+	linenoiseShow(&G.ls);
 	return 0;
 }
 
