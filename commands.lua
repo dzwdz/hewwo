@@ -76,3 +76,37 @@ commands["lua"] = function(line, ...)
 	end
 	print(err)
 end
+
+commands["buffers"] = function()
+	local total = 0
+	print("You're in:")
+	for k,v in pairs(buffers.tbl) do
+		print(k, v.state)
+		total = total + 1
+	end
+	printf("(%d buffers in total)", total)
+end
+commands["bufs"] = commands["buffers"]
+commands["ls"] = commands["buffers"]
+
+commands["help"] = function()
+	local aliases = {}
+	for k,v in pairs(commands) do
+		if not aliases[v] then
+			aliases[v] = {}
+		end
+		table.insert(aliases[v], "/"..k)
+	end
+	for k,v in pairs(aliases) do
+		-- sort by length descending. the longest alias is the primary one
+		table.sort(v, function(a, b) return #a > #b end)
+
+		local s = v[1]
+		for _,alias in ipairs(v) do
+			if s ~= alias then
+				s = s.." = "..alias
+			end
+		end
+		print(s)
+	end
+end

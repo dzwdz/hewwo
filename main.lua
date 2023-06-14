@@ -13,7 +13,9 @@ conn = {
 	pm_hint = nil,
 	chanusers = {},
 }
-buffers = {}
+buffers = {
+	tbl = {},
+}
 
 function init()
 	conn.user = config.nick or os.getenv("USER") or "townie"
@@ -65,16 +67,25 @@ function newcmd(line, remote)
 	local cmd = string.upper(args[1])
 	local to = args[2] -- not always valid!
 
-	if cmd == "JOIN" or cmd == "PART" then
-		buffers:append(to, line)
-	elseif cmd == "PRIVMSG" then
-		if to ~= conn.user then
+	if cmd == "PRIVMSG" then
+		if to == conn.user then
+			buffers:append(from, line)
+		else
 			buffers:append(to, line)
 		end
 	end
 
 	if remote then
-		if cmd == RPL_ENDOFMOTD or cmd == ERR_NOMOTD then
+		if cmd == "JOIN" or cmd == "PART" then
+			buffers:append(to, line)
+			if from == conn.user then
+				if cmd == "JOIN" then
+					buffers.tbl[to].state = "connected"
+				else
+					buffers.tbl[to].state = "parted"
+				end
+			end
+		elseif cmd == RPL_ENDOFMOTD or cmd == ERR_NOMOTD then
 			-- NOT in printcmd, as it's more of a reaction to state change
 			print("ok, i'm connected! try \"/join #tildetown\"")
 		elseif string.sub(cmd, 1, 1) == "4" then
@@ -120,7 +131,7 @@ function completion(line)
 	else
 		addfrom(conn.chanusers[conn.chan])
 	end
-	-- addfrom(buffers) -- TODO this adds internal method names too :(
+	addfrom(buffers.tbl)
 	addfrom(commands, "/")
 	return tbl
 end
@@ -129,9 +140,9 @@ function buffers:switch(chan)
 	printf("--- switching to %s", chan)
 	conn.chan = chan
 	setprompt(chan..": ")
-	if buffers[chan] then
+	if self.tbl[chan] then
 		-- TODO remember last seen message to prevent spam?
-		for ent in buffers[chan]:iter() do
+		for ent in self.tbl[chan]:iter() do
 			printcmd(ent.line, ent.ts)
 		end
 	else
@@ -143,12 +154,13 @@ end
 function buffers:append(buf, line, ts)
 	ts = ts or os.time()
 	self:make(buf)
-	self[buf]:push({line=line, ts=ts})
+	self.tbl[buf]:push({line=line, ts=ts})
 end
 
 function buffers:make(buf)
-	if not self[buf] then
-		self[buf] = ringbuf:new(200)
+	if not self.tbl[buf] then
+		self.tbl[buf] = ringbuf:new(200)
+		self.tbl[buf].state = "unknown"
 	end
 end
 
@@ -196,6 +208,10 @@ function printcmd(rawline, ts)
 	elseif cmd == "PART" then
 		if to ~= conn.chan then return false end
 		printf("%s <-- %s has left %s", timefmt, hi(from), to)
+		return true
+	elseif cmd == "INVITE" then
+		if to ~= conn.user then return false end
+		printf("%s %s has invited you to %s", timefmt, hi(from), args[3])
 		return true
 	end
 	return false
