@@ -6,12 +6,12 @@ OBJS := main.o \
         xdg.o \
         linenoise/linenoise.o
 
-newbirc: $(OBJS) lua/liblua.a
+hewwo: $(OBJS) lua/liblua.a
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 .PHONY: clean
 clean:
-	rm -f newbirc $(OBJS)
+	rm -f hewwo $(OBJS)
 
 lua/liblua.a:
 	cd lua; make liblua.a
