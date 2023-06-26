@@ -114,3 +114,8 @@ commands["help"] = function()
 		print(s)
 	end
 end
+
+commands["unread"] = function()
+	-- TODO /unread
+	print("actually, go figure it out on your own. this isn't implemented yet")
+end

@@ -89,7 +89,9 @@ function newcmd(line, remote)
 			end
 		elseif cmd == RPL_ENDOFMOTD or cmd == ERR_NOMOTD then
 			-- NOT in printcmd, as it's more of a reaction to state change
-			print("ok, i'm connected! try \"/join #tildetown\"")
+			print([[ok, i'm connected! try "/join #tildetown"]])
+			print([[(and if you're wondering what the [0!0] thing is, see /unread)]])
+			print()
 		elseif string.sub(cmd, 1, 1) == "4" then
 			-- TODO the user should never see this. they should instead see friendlier
 			-- messages with instructions how to proceed
@@ -139,16 +141,20 @@ function completion(line)
 end
 
 function updateprompt()
-	local chan = conn.chan or ""
+	local chan = conn.chan or "nowhere"
 	local unread = 0
+	local mentions = 0
 	for _, buf in pairs(buffers.tbl) do
 		-- TODO this is inefficient
 		-- either compute another way, or call updateprompt() less
 		if buf.unread > 0 then
 			unread = unread + 1
 		end
+		if buf.mentions > 0 then
+			mentions = mentions + 1
+		end
 	end
-	setprompt(string.format("%d %s: ", unread, chan))
+	setprompt(string.format("[%d!%d %s]: ", unread, mentions, chan))
 end
 
 function buffers:switch(chan)
@@ -160,6 +166,7 @@ function buffers:switch(chan)
 			printcmd(ent.line, ent.ts)
 		end
 		self.tbl[chan].unread = 0
+		self.tbl[chan].mentions = 0
 	else
 		-- TODO error out
 		print("-- (creating buffer)")
@@ -173,6 +180,11 @@ function buffers:append(buf, line)
 	b:push({line=line, ts=ts})
 	if buf ~= conn.chan then
 		self.tbl[buf].unread = self.tbl[buf].unread + 1
+		if is_mention(line) then
+			-- TODO store original nickname for mention purposes
+			-- otherwise /nick will break shit
+			self.tbl[buf].mentions = self.tbl[buf].mentions + 1
+		end
 	end
 end
 
@@ -182,6 +194,16 @@ function buffers:make(buf)
 		self.tbl[buf].state = "unknown"
 		self.tbl[buf].unread = 0
 	end
+end
+
+function is_mention(line)
+	local prefix, from, args = parsecmd(line)
+	local cmd = string.upper(args[1])
+	if cmd == "PRIVMSG" and string.match(args[3], nick_pattern(conn.user)) then
+		return true
+	end
+	-- TODO kicks, mode changes, et al
+	return false
 end
 
 -- Prints an IRC command, if applicable.
@@ -195,32 +217,51 @@ function printcmd(rawline, ts)
 
 	if cmd == "PRIVMSG" then
 		local msg = args[3]
+		local action = false
+		local private = false
+
+		local nickpat = nick_pattern(conn.user)
 
 		-- TODO strip unprintable
 		if string.sub(to, 1, 1) ~= "#" then -- direct message, always print
-			if string.sub(msg, 1, 7) == "\1ACTION" then
-				msg = string.sub(msg, 9)
-				msg = string.format("* %s %s", hi(from), msg)
-			end
-			printf("%s [%s -> %s] %s", timefmt, hi(from), hi(to), msg)
-			if not conn.pm_hint and from ~= conn.user then
-				print("(hint: you've just received a private message!")
-				print("       try \"/msg "..from.." [your reply]\")")
-				conn.pm_hint = true
-			end
-			return true
-		elseif to == conn.chan then
-			-- string.len("ACTION ") == 7
-			if string.sub(msg, 1, 7) == "\1ACTION" then
-				msg = string.sub(msg, 9)
-				printf("%s * %s %s", timefmt, hi(from), msg)
-			else
-				printf("%s <%s> %s", timefmt, hi(from), msg)
-			end
-			return true
-		else
+			private = true
+			mention = true
+		elseif string.match(msg, nickpat) then
+			mention = true
+		elseif to ~= conn.chan then
 			return false
 		end
+
+		if string.sub(msg, 1, 7) == "\1ACTION" then
+			action = true
+			msg = string.sub(msg, 9)
+		end
+
+		-- highlight own nick
+		msg = string.gsub(msg, nickpat, hi(conn.user))
+
+		if private and action then
+			msg = string.format("* %s %s", hi(from), msg)
+			msg = string.format("[%s -> %s] %s", hi(from), hi(to), msg)
+		elseif private then
+			msg = string.format("[%s -> %s] %s", hi(from), hi(to), msg)
+		elseif action then
+			msg = string.format("* %s %s", hi(from), msg)
+		else
+			msg = string.format("<%s> %s", hi(from), msg)
+		end
+		if not private and to ~= conn.chan then
+			-- mention = true
+			msg = string.format("%s: %s", to, msg)
+		end
+		printf("%s %s", timefmt, msg)
+
+		if private and not conn.pm_hint and from ~= conn.user then
+			printf([[hint: you've just received a private message!]])
+			printf([[      try "/msg %s [your reply]"]], from)
+			conn.pm_hint = true
+		end
+		return true
 	elseif cmd == "JOIN" then
 		if to ~= conn.chan then return false end
 		printf("%s --> %s has joined %s", timefmt, hi(from), to)
