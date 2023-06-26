@@ -4,7 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#define CFGDIR "/hewwo/"
+#define CFGDIR "/hewwo/edge/"
 
 static char *
 cpycat(char *dst, const char *src)

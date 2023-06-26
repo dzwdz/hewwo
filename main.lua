@@ -124,8 +124,9 @@ function completion(line)
 		local word = string.sub(word, string.len(prefix) + 1)
 		local wlen = string.len(word)
 		for k, v in pairs(src) do
+			k = prefix..k..suffix
 			if v and wlen < string.len(k) and word == string.sub(k, 1, wlen) then
-				table.insert(tbl, rest..prefix..k..suffix)
+				table.insert(tbl, rest..k)
 			end
 		end
 	end
