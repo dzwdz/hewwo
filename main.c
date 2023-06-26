@@ -226,7 +226,7 @@ main()
 	lua_register(G.L, "print", l_print);
 	lua_register(G.L, "setprompt", l_setprompt);
 	lua_register(G.L, "writesock", l_writesock);
-	if (luaL_dofile(G.L, "main.lua")) {
+	if (luaL_dostring(G.L, "require \"main\"")) {
 		printf("I've hit a Lua error :(\n%s\n", lua_tostring(G.L, -1));
 		exit(1);
 	}
