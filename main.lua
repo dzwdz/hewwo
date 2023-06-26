@@ -194,6 +194,7 @@ function buffers:make(buf)
 		self.tbl[buf] = ringbuf:new(200)
 		self.tbl[buf].state = "unknown"
 		self.tbl[buf].unread = 0
+		self.tbl[buf].mentions = 0
 	end
 end
 
