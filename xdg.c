@@ -1,4 +1,12 @@
-#include "xdg.h"
+/** xdg.c
+ * Figures out the potential locations of Lua files (inc. configs).
+ * In order of preference:
+ * 1. $XDG_CONFIG_HOME/hewwo/edge/
+ * 2. /etc/hewwo/edge/
+ * 3. the location of the executable
+ */
+
+#include "hewwo.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>

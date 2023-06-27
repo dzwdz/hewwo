@@ -1,8 +1,13 @@
+/** main.c
+ * The core of hewwo. Handles sockets, line-editing, multiplexing input.
+ * Passes each line of input (both from the user and from the network) to
+ * main.lua.
+ */
+
 #include "linenoise/linenoise.h"
 #include "lua/lauxlib.h"
 #include "lua/lualib.h"
-#include "net.h"
-#include "xdg.h"
+#include "hewwo.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,20 +18,9 @@ struct {
 	struct linenoiseState ls;
 	lua_State *L;
 	int fd;
-
 	char *prompt;
-
-	bool did_print; /* for lnprintf */
+	bool did_print; 
 } G;
-
-// Could be achieved without a macro. I don't care.
-#define lnprintf(...) ({\
-	if (!G.did_print) {\
-		linenoiseHide(&G.ls);\
-		G.did_print = true;\
-	}\
-	printf(__VA_ARGS__);\
-})
 
 // general TODO: connection state machine
 
@@ -179,17 +173,18 @@ l_print(lua_State *L)
 static int
 l_setprompt(lua_State *L)
 {
-	char *new = lua_tolstring(L, 1, NULL);
-	if (strcmp(new, G.prompt) == 0) {
+	const char *arg = lua_tolstring(L, 1, NULL);
+	char *copy;
+	if (strcmp(arg, G.prompt) == 0) {
 		return 0;
 	}
-	new = strdup(new);
+	copy = strdup(arg);
 
-	free(G.prompt);
-	G.prompt = new;
-	G.ls.prompt = new;
-	G.ls.plen = strlen(new);
 	linenoiseHide(&G.ls);
+	free(G.prompt);
+	G.prompt = copy;
+	G.ls.prompt = copy;
+	G.ls.plen = strlen(copy);
 	linenoiseShow(&G.ls);
 	return 0;
 }
@@ -204,8 +199,16 @@ l_writesock(lua_State *L)
 }
 
 int
-main()
+main(int argc, char **argv)
 {
+	const char *host = "localhost", *port = "6667";
+	if (1 < argc) host = argv[1];
+	if (2 < argc) port = argv[2];
+	if (3 < argc) {
+		fprintf(stderr, "usage: hewwo [host] [port]\nhint: you've used too many arguments\n");
+		return 1;
+	}
+
 	G.L = luaL_newstate();
 	G.did_print = true;
 	G.prompt = strdup(": ");
@@ -234,6 +237,6 @@ main()
 	linenoiseSetCompletionCallback(completion);
 
 	printf("hi! i'm an irc client. please give me a second to connect...\n");
-	mainloop("localhost", "6667");
+	mainloop(host, port);
 	lua_close(G.L);
 }

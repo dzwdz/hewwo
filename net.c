@@ -1,4 +1,7 @@
-#include "net.h"
+/** net.c
+ * Low-level socket handling, inc. buffered input. */
+
+#include "hewwo.h"
 #include <arpa/inet.h>
 #include <assert.h>
 #include <netdb.h>
