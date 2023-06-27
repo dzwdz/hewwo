@@ -27,7 +27,7 @@ end
 
 commands["quit"] = function(line, ...)
 	if line == "/QUIT" then
-		writecmd("QUIT")
+		writecmd("QUIT", config.quit_msg)
 		os.exit(0)
 	end
 	print("if you are sure you want to exit, type \"/QUIT\" (all caps)")
