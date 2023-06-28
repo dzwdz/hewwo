@@ -10,6 +10,9 @@ require "ringbuf"
 conn = {
 	user = nil,
 	nick_verified = false,
+	nick_idx = 1, -- for the initial nick
+	-- i don't care if the nick gets ugly, i need to connect ASAP to prevent
+	-- the connection from dropping
 
 	chan = nil,
 	pm_hint = nil,
@@ -20,7 +23,11 @@ buffers = {
 }
 
 function init()
-	conn.user = config.nick or os.getenv("USER") or "townie"
+	if not config.nick then
+		-- hack
+		config.nick = os.getenv("USER") or "townie"
+	end
+	conn.user = config.nick
 	printf("logging you in as %s. if you don't like that, try /nick", hi(conn.user))
 	writecmd("USER", conn.user, "localhost", "servername", "Real Name")
 	writecmd("NICK", conn.user)
@@ -121,6 +128,16 @@ function newcmd(line, remote)
 			print([[ok, i'm connected! try "/join #tildetown"]])
 			print([[(and if you're wondering what the [0!0] thing is, see /unread)]])
 			print()
+		elseif cmd == ERR_NICKNAMEINUSE then
+			if conn.nick_verified then
+				printf("%s is taken, leaving your nick as %s", hi(args[3]), hi(conn.user))
+			else
+				local new = config.nick .. conn.nick_idx
+				conn.nick_idx = conn.nick_idx + 1
+				printf("%s is taken, trying %s", hi(conn.user), hi(new))
+				conn.user = new
+				writecmd("NICK", new)
+			end
 		elseif string.sub(cmd, 1, 1) == "4" then
 			-- TODO the user should never see this. they should instead see friendlier
 			-- messages with instructions how to proceed
