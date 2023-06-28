@@ -25,6 +25,16 @@ commands["join"] = function(_, ...)
 	buffers:switch(last)
 end
 
+commands["part"] = function(_, ...)
+	if #{...} == 0 then
+		writecmd("PART", conn.chan)
+	else
+		for i, v in ipairs({...}) do
+			writecmd("PART", v)
+		end
+	end
+end
+
 commands["quit"] = function(line, ...)
 	if line == "/QUIT" then
 		writecmd("QUIT", config.quit_msg)
@@ -121,10 +131,15 @@ commands["unread"] = function()
 end
 
 commands["who"] = function(_, ...)
+	if #{...} ~= 0 then
+		printf("/who doesn't support any arguments yet")
+		return
+	end
 	if not conn.chan then
 		printf("you're not in a channel yet")
 		return
 	end
+
 	local nicks = {}
 	for k, v in pairs(conn.chanusers[conn.chan]) do
 		if v then

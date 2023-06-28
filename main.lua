@@ -78,14 +78,29 @@ function newcmd(line, remote)
 	end
 
 	if remote then
-		if cmd == "JOIN" or cmd == "PART" then
+		if cmd == "JOIN" then
 			buffers:append(to, line)
 			if from == conn.user then
-				if cmd == "JOIN" then
-					buffers.tbl[to].state = "connected"
-				else
-					buffers.tbl[to].state = "parted"
+				buffers.tbl[to].state = "connected"
+			end
+			if conn.chanusers[to] then
+				conn.chanusers[to][from] = true
+			end
+		elseif cmd == "PART" then
+			buffers:append(to, line)
+			if from == conn.user then
+				buffers.tbl[to].state = "parted"
+				conn.chanusers[to] = {}
+			end
+			if conn.chanusers[to] then
+				conn.chanusers[to][from] = nil
+			end
+		elseif cmd == "QUIT" then
+			for chan,set in pairs(conn.chanusers) do
+				if set[from] then
+					buffers:append(chan, line)
 				end
+				set[from] = nil
 			end
 		elseif cmd == RPL_ENDOFMOTD or cmd == ERR_NOMOTD then
 			-- NOT in printcmd, as it's more of a reaction to state change
@@ -276,6 +291,10 @@ function printcmd(rawline, ts)
 		if to ~= conn.user then return false end
 		printf("%s %s has invited you to %s", timefmt, hi(from), args[3])
 		return true
+	elseif cmd == "QUIT" then
+		-- TODO print QUITs only in the relevant channel?
+		-- making this work in scrollback would be complicated
+		printf("%s <-- %s has quit (%s)", timefmt, hi(from), args[2])
 	end
 	return false
 end
