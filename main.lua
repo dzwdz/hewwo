@@ -9,6 +9,8 @@ require "ringbuf"
 
 conn = {
 	user = nil,
+	nick_verified = false,
+
 	chan = nil,
 	pm_hint = nil,
 	chanusers = {},
@@ -63,7 +65,7 @@ end
 
 -- Called for new commands, both from the server and from the client.
 function newcmd(line, remote)
-	printcmd(line, os.time())
+	printcmd(line, os.time(), remote)
 
 	local prefix, from, args = parsecmd(line)
 	local cmd = string.upper(args[1])
@@ -99,10 +101,22 @@ function newcmd(line, remote)
 			for chan,set in pairs(conn.chanusers) do
 				if set[from] then
 					buffers:append(chan, line)
+					set[from] = nil
 				end
-				set[from] = nil
+			end
+		elseif cmd == "NICK" then
+			if from == conn.user then
+				conn.user = to
+			end
+			for chan,set in pairs(conn.chanusers) do
+				if set[from] then
+					buffers:append(chan, line)
+					set[from] = nil
+					set[to] = true
+				end
 			end
 		elseif cmd == RPL_ENDOFMOTD or cmd == ERR_NOMOTD then
+			conn.nick_verified = true
 			-- NOT in printcmd, as it's more of a reaction to state change
 			print([[ok, i'm connected! try "/join #tildetown"]])
 			print([[(and if you're wondering what the [0!0] thing is, see /unread)]])
@@ -225,7 +239,7 @@ end
 
 -- Prints an IRC command, if applicable.
 -- returns true if anything was output, false otherwise
-function printcmd(rawline, ts)
+function printcmd(rawline, ts, remote)
 	local timefmt = os.date(config.timefmt, ts)
 
 	local prefix, from, args = parsecmd(rawline)
@@ -294,7 +308,13 @@ function printcmd(rawline, ts)
 	elseif cmd == "QUIT" then
 		-- TODO print QUITs only in the relevant channel?
 		-- making this work in scrollback would be complicated
+		--
+		-- maybe printcmd could only be called from writecmd after parsing?
 		printf("%s <-- %s has quit (%s)", timefmt, hi(from), args[2])
+	elseif cmd == "NICK" then
+		if remote then
+			printf("%s %s is now known as %s", timefmt, hi(from), hi(to))
+		end
 	end
 	return false
 end

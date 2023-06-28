@@ -1,15 +1,19 @@
 commands = {}
 
 commands["nick"] = function(_, ...)
-	if #{...} ~= 1 then
+	if #{...} == 0 then
+		printf("your nick is %s", hi(conn.user))
+	elseif #{...} == 1 then
+		local nick = ...
+		-- TODO validate nick
+		writecmd("NICK", nick)
+		if not conn.nick_verified then
+			conn.user = nick
+		end
+		printf("changing your nick to %s...", hi(nick))
+	else
 		print("/nick takes exactly one argument")
-		return
 	end
-	local nick = ...
-	-- TODO validate nick
-	writecmd("NICK", nick)
-	conn.user = nick
-	print("your nick is now "..hi(nick))
 end
 
 commands["join"] = function(_, ...)
@@ -17,6 +21,7 @@ commands["join"] = function(_, ...)
 		print("missing argument. try /join #tildetown")
 		return
 	end
+	-- TODO check conn.nick_verified
 	for i, v in ipairs({...}) do
 		writecmd("JOIN", v)
 		buffers:make(v)
