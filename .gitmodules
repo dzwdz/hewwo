@@ -1,6 +1,7 @@
 [submodule "linenoise"]
 	path = linenoise
-	url = https://github.com/antirez/linenoise
+	url = https://github.com/dzwdz/linenoise
+	branch = hewwo
 [submodule "lua"]
 	path = lua
 	url = https://github.com/lua/lua

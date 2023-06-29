@@ -16,6 +16,7 @@ conn = {
 
 	chan = nil,
 	pm_hint = nil,
+	quit_hint = nil,
 	chanusers = {},
 }
 buffers = {
@@ -45,6 +46,13 @@ end
 
 function in_user(line)
 	if line == "" then return end
+	if line == nil then
+		if not conn.quit_hint then
+			print("hint: if you meant to quit, try /QUIT")
+		end
+		conn.quit_hint = true
+		return
+	end
 
 	if string.sub(line, 1, 1) == "/" then
 		if string.sub(line, 2, 2) == "/" then

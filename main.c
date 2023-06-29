@@ -33,7 +33,11 @@ l_callfn(char *name, char *arg)
 	lua_remove(G.L, -2); /* remove debug from the stack */
 
 	lua_getglobal(G.L, name);
-	lua_pushstring(G.L, arg);
+	if (arg) {
+		lua_pushstring(G.L, arg);
+	} else {
+		lua_pushnil(G.L);
+	}
 	if (lua_pcall(G.L, 1, 0, base+1) != LUA_OK) {
 		linenoiseEditStop(&G.ls);
 		// TODO shouldn't always be fatal
@@ -69,7 +73,7 @@ mainloop(const char *host, const char *port)
 	}
 
 	bi = bufio_init();
-	l_callfn("init", "Thank you for playing Wing Commander!");
+	l_callfn("init", NULL);
 
 	linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, G.prompt);
 	G.did_print = false;
@@ -91,11 +95,7 @@ mainloop(const char *host, const char *port)
 		if (FD_ISSET(0, &rfds)) {
 			char *line = linenoiseEditFeed(&G.ls);
 			if (line == linenoiseEditMore) continue;
-			linenoiseHide(&G.ls);
-			if (line == NULL) {
-				linenoiseEditStop(&G.ls);
-				exit(0);
-			}
+			linenoiseEditStopSilent(&G.ls);
 			in_user(line);
 			linenoiseFree(line);
 			linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, G.prompt);
