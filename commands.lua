@@ -1,4 +1,9 @@
 commands = {}
+commands_help = {}
+
+function set_cmd_help(cmd, help)
+	commands_help[commands[cmd]] = help
+end
 
 commands["nick"] = function(_, ...)
 	if #{...} == 0 then
@@ -39,6 +44,7 @@ commands["part"] = function(_, ...)
 		end
 	end
 end
+commands["leave"] = commands["part"]
 
 commands["quit"] = function(line, ...)
 	if line == "/QUIT" then
@@ -58,8 +64,10 @@ commands["msg"] = function(line, user, ...)
 	conn.pm_hint = true
 end
 commands["q"] = commands["msg"]
+commands["query"] = commands["msg"]
+set_cmd_help("query", "Send a private message to someone.")
 
-commands["buf"] = function(line, ...)
+commands["buffer"] = function(line, ...)
 	if #{...} ~= 1 then
 		print("/buf takes in exactly one argument - a channel/username")
 		return
@@ -67,8 +75,7 @@ commands["buf"] = function(line, ...)
 	local chan = ...
 	buffers:switch(chan)
 end
-commands["b"] = commands["buf"]
-commands["buffer"] = commands["buf"]
+commands["buf"] = commands["buffer"]
 
 commands["action"] = function(line, ...)
 	local msg = "\1ACTION " .. string.gsub(line, "^[^ ]* *", "")
@@ -108,25 +115,48 @@ end
 commands["bufs"] = commands["buffers"]
 commands["ls"] = commands["buffers"]
 
-commands["help"] = function()
-	local aliases = {}
-	for k,v in pairs(commands) do
-		if not aliases[v] then
-			aliases[v] = {}
+commands["help"] = function(_, what)
+	if what == "cmd" then
+		local aliases = {}
+		local aliases_ord = {}
+		for k,v in pairs(commands) do
+			if not aliases[v] then
+				aliases[v] = {}
+			end
+			table.insert(aliases[v], k)
 		end
-		table.insert(aliases[v], "/"..k)
-	end
-	for k,v in pairs(aliases) do
-		-- sort by length descending. the longest alias is the primary one
-		table.sort(v, function(a, b) return #a > #b end)
-
-		local s = v[1]
-		for _,alias in ipairs(v) do
-			if s ~= alias then
-				s = s.." = "..alias
+		for k,v in pairs(aliases) do
+			-- sort by length descending. the longest alias is the primary one
+			table.sort(v, function(a, b) return #a > #b end)
+			table.insert(aliases_ord, v)
+		end
+		-- sort commands alphabetically
+		table.sort(aliases_ord, function(a, b) return a[1] < b[1] end)
+		for _,v in ipairs(aliases_ord) do
+			local s = ""
+			for _,alias in ipairs(v) do
+				if s == "" then
+					s = "/"..alias
+				else
+					s = s.." = /"..alias
+				end
+			end
+			print(s)
+			local help = commands_help[commands[v[1]]]
+			if help then 
+				print("  "..help)
 			end
 		end
-		print(s)
+	elseif what == "manual" or what == "unread" then
+		-- TODO help manual, unread, etc
+		printf("you fool! %s hasn't implemented this yet. we're doomed!", hi("dzwdz"))
+	else
+		if what then
+			printf([[i'm not sure what you meant by "%s" :(]], what)
+		end
+		print([["/help cmd"    will list all the available commands]])
+		print([["/help manual" will show the manual]])
+		print([["/help unread" will explain the [0!0] thing in your prompt]])
 	end
 end
 
@@ -175,3 +205,4 @@ commands["who"] = function(_, ...)
 	end
 end
 commands["nicks"] = commands["who"]
+set_cmd_help("who", "See who's in the current channel.")

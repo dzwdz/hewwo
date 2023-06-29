@@ -133,8 +133,7 @@ function newcmd(line, remote)
 		elseif cmd == RPL_ENDOFMOTD or cmd == ERR_NOMOTD then
 			conn.nick_verified = true
 			-- NOT in printcmd, as it's more of a reaction to state change
-			print([[ok, i'm connected! try "/join #tildetown"]])
-			print([[(and if you're wondering what the [0!0] thing is, see /unread)]])
+			print([[ok, i'm connected! try "/join #newbirc" or "/help"]])
 			print()
 		elseif cmd == ERR_NICKNAMEINUSE then
 			if conn.nick_verified then
