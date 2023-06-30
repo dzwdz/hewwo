@@ -4,7 +4,7 @@
 require "irc"
 require "commands"
 require "util"
-require "ringbuf"
+require "buffers"
 -- also see eof
 
 conn = {
@@ -18,9 +18,6 @@ conn = {
 	pm_hint = nil,
 	quit_hint = nil,
 	chanusers = {},
-}
-buffers = {
-	tbl = {},
 }
 
 function init()
@@ -196,59 +193,8 @@ end
 
 function updateprompt()
 	local chan = conn.chan or "nowhere"
-	local unread = 0
-	local mentions = 0
-	for _, buf in pairs(buffers.tbl) do
-		-- TODO this is inefficient
-		-- either compute another way, or call updateprompt() less
-		if buf.unread > 0 then
-			unread = unread + 1
-		end
-		if buf.mentions > 0 then
-			mentions = mentions + 1
-		end
-	end
+	local unread, mentions = buffers:count_unread()
 	setprompt(string.format("[%d!%d %s]: ", unread, mentions, chan))
-end
-
-function buffers:switch(chan)
-	printf("--- switching to %s", chan)
-	conn.chan = chan
-	if self.tbl[chan] then
-		-- TODO remember last seen message to prevent spam?
-		for ent in self.tbl[chan]:iter() do
-			printcmd(ent.line, ent.ts)
-		end
-		self.tbl[chan].unread = 0
-		self.tbl[chan].mentions = 0
-	else
-		-- TODO error out
-		print("-- (creating buffer)")
-	end
-end
-
-function buffers:append(buf, line)
-	local ts = os.time()
-	self:make(buf)
-	local b = self.tbl[buf]
-	b:push({line=line, ts=ts})
-	if buf ~= conn.chan then
-		self.tbl[buf].unread = self.tbl[buf].unread + 1
-		if is_mention(line) then
-			-- TODO store original nickname for mention purposes
-			-- otherwise /nick will break shit
-			self.tbl[buf].mentions = self.tbl[buf].mentions + 1
-		end
-	end
-end
-
-function buffers:make(buf)
-	if not self.tbl[buf] then
-		self.tbl[buf] = ringbuf:new(200)
-		self.tbl[buf].state = "unknown"
-		self.tbl[buf].unread = 0
-		self.tbl[buf].mentions = 0
-	end
 end
 
 function is_mention(line)

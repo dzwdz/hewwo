@@ -21,6 +21,7 @@ function writecmd(...)
 	writesock(cmd)
 
 	local verb = string.upper(({...})[1])
+	-- TODO remove this if
 	if verb ~= "JOIN" and verb ~= "PART" then
 		newcmd(":"..conn.user.."!@ "..cmd, false)
 	end -- else will get echoed back at us anyways
