@@ -77,11 +77,16 @@ end
 
 -- Called for new commands, both from the server and from the client.
 function newcmd(line, remote)
-	printcmd(line, os.time(), remote)
-
 	local prefix, from, args = parsecmd(line)
 	local cmd = string.upper(args[1])
 	local to = args[2] -- not always valid!
+
+	if not remote and cmd ~= "PRIVMSG" then
+		-- (afaik) all other messages are echoed back at us
+		return
+	end
+
+	printcmd(line, os.time(), remote)
 
 	if cmd == "PRIVMSG" then
 		if to == conn.user then
@@ -89,73 +94,68 @@ function newcmd(line, remote)
 		else
 			buffers:append(to, line)
 		end
-	end
-
-	if remote then
-		if cmd == "JOIN" then
-			buffers:append(to, line)
-			if from == conn.user then
-				buffers.tbl[to].state = "connected"
+	elseif cmd == "JOIN" then
+		buffers:append(to, line)
+		if from == conn.user then
+			buffers.tbl[to].state = "connected"
+		end
+		if conn.chanusers[to] then
+			conn.chanusers[to][from] = true
+		end
+	elseif cmd == "PART" then
+		buffers:append(to, line)
+		if from == conn.user then
+			buffers.tbl[to].state = "parted"
+			conn.chanusers[to] = {}
+		end
+		if conn.chanusers[to] then
+			conn.chanusers[to][from] = nil
+		end
+	elseif cmd == "QUIT" then
+		for chan,set in pairs(conn.chanusers) do
+			if set[from] then
+				buffers:append(chan, line)
+				set[from] = nil
 			end
-			if conn.chanusers[to] then
-				conn.chanusers[to][from] = true
+		end
+	elseif cmd == "NICK" then
+		if from == conn.user then
+			conn.user = to
+		end
+		for chan,set in pairs(conn.chanusers) do
+			if set[from] then
+				buffers:append(chan, line)
+				set[from] = nil
+				set[to] = true
 			end
-		elseif cmd == "PART" then
-			buffers:append(to, line)
-			if from == conn.user then
-				buffers.tbl[to].state = "parted"
-				conn.chanusers[to] = {}
-			end
-			if conn.chanusers[to] then
-				conn.chanusers[to][from] = nil
-			end
-		elseif cmd == "QUIT" then
-			for chan,set in pairs(conn.chanusers) do
-				if set[from] then
-					buffers:append(chan, line)
-					set[from] = nil
-				end
-			end
-		elseif cmd == "NICK" then
-			if from == conn.user then
-				conn.user = to
-			end
-			for chan,set in pairs(conn.chanusers) do
-				if set[from] then
-					buffers:append(chan, line)
-					set[from] = nil
-					set[to] = true
-				end
-			end
-		elseif cmd == RPL_ENDOFMOTD or cmd == ERR_NOMOTD then
-			conn.nick_verified = true
-			-- NOT in printcmd, as it's more of a reaction to state change
-			print([[ok, i'm connected! try "/join #newbirc" or "/help"]])
-			print()
-		elseif cmd == ERR_NICKNAMEINUSE then
-			if conn.nick_verified then
-				printf("%s is taken, leaving your nick as %s", hi(args[3]), hi(conn.user))
-			else
-				local new = config.nick .. conn.nick_idx
-				conn.nick_idx = conn.nick_idx + 1
-				printf("%s is taken, trying %s", hi(conn.user), hi(new))
-				conn.user = new
-				writecmd("NICK", new)
-			end
-		elseif string.sub(cmd, 1, 1) == "4" then
-			-- TODO the user should never see this. they should instead see friendlier
-			-- messages with instructions how to proceed
-			printf("irc error %s: %s", cmd, args[#args])
-		elseif cmd == "PING" then
-			writecmd("PONG", to)
-		elseif cmd == RPL_NAMREPLY then
-			to = args[4]
-			conn.chanusers[to] = conn.chanusers[to] or {}
-			-- TODO incorrect nick parsing
-			-- TODO update on JOIN/PART
-			for nick in string.gmatch(args[5], "[^ ,*?!@]+") do
-				conn.chanusers[to][nick] = true
-			end
+		end
+	elseif cmd == RPL_ENDOFMOTD or cmd == ERR_NOMOTD then
+		conn.nick_verified = true
+		-- NOT in printcmd, as it's more of a reaction to state change
+		print([[ok, i'm connected! try "/join #newbirc" or "/help"]])
+		print()
+	elseif cmd == ERR_NICKNAMEINUSE then
+		if conn.nick_verified then
+			printf("%s is taken, leaving your nick as %s", hi(args[3]), hi(conn.user))
+		else
+			local new = config.nick .. conn.nick_idx
+			conn.nick_idx = conn.nick_idx + 1
+			printf("%s is taken, trying %s", hi(conn.user), hi(new))
+			conn.user = new
+			writecmd("NICK", new)
+		end
+	elseif string.sub(cmd, 1, 1) == "4" then
+		-- TODO the user should never see this. they should instead see friendlier
+		-- messages with instructions how to proceed
+		printf("irc error %s: %s", cmd, args[#args])
+	elseif cmd == "PING" then
+		writecmd("PONG", to)
+	elseif cmd == RPL_NAMREPLY then
+		to = args[4]
+		conn.chanusers[to] = conn.chanusers[to] or {}
+		-- TODO incorrect nick parsing
+		for nick in string.gmatch(args[5], "[^ ,*?!@]+") do
+			conn.chanusers[to][nick] = true
 		end
 	end
 end
