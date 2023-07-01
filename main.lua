@@ -86,16 +86,21 @@ function newcmd(line, remote)
 		return
 	end
 
-	printcmd(line, os.time(), remote)
-
 	if cmd == "PRIVMSG" then
-		if to == conn.user then
-			buffers:append(from, line)
+		local msg = args[3]
+		-- TODO will incorrectly detect pings in CTCP verbs
+
+		if to == conn.user then -- direct message
+			buffers:push(from, line, 1)
 		else
-			buffers:append(to, line)
+			local urgency = 0
+			if string.match(msg, nick_pattern(conn.user)) or from == conn.user then
+				urgency = 1
+			end
+			buffers:push(to, line, urgency)
 		end
 	elseif cmd == "JOIN" then
-		buffers:append(to, line)
+		buffers:push(to, line)
 		if from == conn.user then
 			buffers.tbl[to].state = "connected"
 		end
@@ -103,28 +108,41 @@ function newcmd(line, remote)
 			conn.chanusers[to][from] = true
 		end
 	elseif cmd == "PART" then
-		buffers:append(to, line)
+		buffers:push(to, line)
 		if from == conn.user then
+			-- TODO chanusers should be managed by buffers.lua
 			buffers.tbl[to].state = "parted"
 			conn.chanusers[to] = {}
 		end
 		if conn.chanusers[to] then
 			conn.chanusers[to][from] = nil
 		end
+	elseif cmd == "INVITE" then
+		buffers:push(from, line, 1)
 	elseif cmd == "QUIT" then
+		local urgency = 0
+		if from == conn.user then
+			-- print manually
+			urgency = -1
+			printcmd(line, os.time())
+		end
 		for chan,set in pairs(conn.chanusers) do
 			if set[from] then
-				buffers:append(chan, line)
+				buffers:push(chan, line, urgency)
 				set[from] = nil
 			end
 		end
 	elseif cmd == "NICK" then
+		local urgency = 0
 		if from == conn.user then
 			conn.user = to
+			-- print manually
+			urgency = -1
+			printcmd(line, os.time())
 		end
 		for chan,set in pairs(conn.chanusers) do
 			if set[from] then
-				buffers:append(chan, line)
+				buffers:push(chan, line, urgency)
 				set[from] = nil
 				set[to] = true
 			end
@@ -197,20 +215,13 @@ function updateprompt()
 	setprompt(string.format("[%d!%d %s]: ", unread, mentions, chan))
 end
 
-function is_mention(line)
-	local prefix, from, args = parsecmd(line)
-	local cmd = string.upper(args[1])
-	if cmd == "PRIVMSG" and string.match(args[3], nick_pattern(conn.user)) then
-		return true
-	end
-	-- TODO kicks, mode changes, et al
-	return false
-end
-
--- Prints an IRC command, if applicable.
--- returns true if anything was output, false otherwise
-function printcmd(rawline, ts, remote)
+-- Prints an IRC command.
+function printcmd(rawline, ts, urgent_buf)
 	local timefmt = os.date(config.timefmt, ts)
+	local out_prefix = timefmt
+	if urgent_buf then
+		out_prefix = string.format("%s %s:", out_prefix, urgent_buf)
+	end
 
 	local prefix, from, args = parsecmd(rawline)
 	local cmd = string.upper(args[1])
@@ -221,72 +232,54 @@ function printcmd(rawline, ts, remote)
 		local action = false
 		local private = false
 
-		local nickpat = nick_pattern(conn.user)
-
 		-- TODO strip unprintable
-		if string.sub(to, 1, 1) ~= "#" then -- direct message, always print
+		if string.sub(to, 1, 1) ~= "#" then
 			private = true
-			mention = true
-		elseif string.match(msg, nickpat) then
-			mention = true
-		elseif to ~= conn.chan then
-			return false
 		end
-
 		if string.sub(msg, 1, 7) == "\1ACTION" then
+			-- TODO strip trailing \1
 			action = true
 			msg = string.sub(msg, 9)
 		end
 
 		-- highlight own nick
-		msg = string.gsub(msg, nickpat, hi(conn.user))
+		msg = string.gsub(msg, nick_pattern(conn.user), hi(conn.user))
 
-		if private and action then
-			msg = string.format("* %s %s", hi(from), msg)
+		if private then
+			if action then
+				msg = string.format("* %s %s", hi(from), msg)
+			end
 			msg = string.format("[%s -> %s] %s", hi(from), hi(to), msg)
-		elseif private then
-			msg = string.format("[%s -> %s] %s", hi(from), hi(to), msg)
-		elseif action then
-			msg = string.format("* %s %s", hi(from), msg)
+			-- printing the buffer is redundant
+			printf("%s %s", timefmt, msg)
 		else
-			msg = string.format("<%s> %s", hi(from), msg)
+			if action then
+				msg = string.format("* %s %s", hi(from), msg)
+			else
+				msg = string.format("<%s> %s", hi(from), msg)
+			end
+			printf("%s %s", out_prefix, msg)
 		end
-		if not private and to ~= conn.chan then
-			-- mention = true
-			msg = string.format("%s: %s", to, msg)
-		end
-		printf("%s %s", timefmt, msg)
 
 		if private and not conn.pm_hint and from ~= conn.user then
 			printf([[hint: you've just received a private message!]])
 			printf([[      try "/msg %s [your reply]"]], from)
 			conn.pm_hint = true
 		end
-		return true
 	elseif cmd == "JOIN" then
-		if to ~= conn.chan then return false end
-		printf("%s --> %s has joined %s", timefmt, hi(from), to)
-		return true
+		printf("%s --> %s has joined %s", out_prefix, hi(from), to)
 	elseif cmd == "PART" then
-		if to ~= conn.chan then return false end
-		printf("%s <-- %s has left %s", timefmt, hi(from), to)
-		return true
+		printf("%s <-- %s has left %s", out_prefix, hi(from), to)
 	elseif cmd == "INVITE" then
-		if to ~= conn.user then return false end
-		printf("%s %s has invited you to %s", timefmt, hi(from), args[3])
-		return true
+		printf("%s %s has invited you to %s", out_prefix, hi(from), args[3])
 	elseif cmd == "QUIT" then
-		-- TODO print QUITs only in the relevant channel?
-		-- making this work in scrollback would be complicated
-		--
-		-- maybe printcmd could only be called from writecmd after parsing?
-		printf("%s <-- %s has quit (%s)", timefmt, hi(from), args[2])
+		printf("%s <-- %s has quit (%s)", out_prefix, hi(from), args[2])
 	elseif cmd == "NICK" then
-		if remote then
-			printf("%s %s is now known as %s", timefmt, hi(from), hi(to))
-		end
+		printf("%s %s is now known as %s", out_prefix, hi(from), hi(to))
+	else
+		-- TODO config.debug levels
+		printf([[error in hewwo: printcmd can't handle "%s"]], cmd)
 	end
-	return false
 end
 
 config = {}

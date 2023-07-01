@@ -18,19 +18,36 @@ function buffers:switch(chan)
 	end
 end
 
-function buffers:append(buf, line)
+-- pushes a fresh irc command to a buffer
+-- urgency controls if the message should be printed as its pushed.
+-- urgency == 0  ->  printed iff the buffer is visible
+-- urgency >  0  ->  always printed, potentially with an urgency prefix
+-- urgency <  0  ->  not printed
+function buffers:push(buf, line, urgency)
+	urgency = urgency or 0
+
 	local ts = os.time()
 	self:make(buf)
 	local b = self.tbl[buf]
 	b:push({line=line, ts=ts})
 	if buf ~= conn.chan then
 		self.tbl[buf].unread = self.tbl[buf].unread + 1
-		if is_mention(line) then
+		if urgency > 0 then
 			-- TODO store original nickname for mention purposes
 			-- otherwise /nick will break shit
 			self.tbl[buf].mentions = self.tbl[buf].mentions + 1
 		end
 	end
+
+	if urgency >= 0 and buffers:is_visible(buf) then
+		printcmd(line, ts)
+	elseif urgency > 0 then
+		printcmd(line, ts, buf)
+	end
+end
+
+function buffers:is_visible(buf)
+	return buf == conn.chan
 end
 
 function buffers:make(buf)
