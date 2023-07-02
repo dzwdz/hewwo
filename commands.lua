@@ -85,6 +85,8 @@ commands["me"] = commands["action"]
 
 commands["lua"] = function(line, ...)
 	line = string.gsub(line, "^[^ ]* *", "")
+	-- hmm, should this maybe be a custom buffer?
+	printf("lua: %s", line)
 	local fn, err = load(line, "=(user)")
 	if fn then
 		fn()
