@@ -22,16 +22,12 @@ function nick_pattern(nick)
 	return "%f[%w]"..nick.."%f[^%w]"
 end
 
-function escape(s) -- escape non-ascii chars
-	local out = ""
-	for _, c in ipairs({string.byte(s, 1, -1)}) do
-		if c < 20 then
-			out = out .. "\x1b[35m^" .. string.char(c + 64) .. "\x1b[0m"
-		elseif c == 127 then
-			out = out .. "\x1b[35m^?\x1b[0m"
-		else
-			out = out .. string.char(c)
-		end
-	end
-	return out
+function escape(s) -- escape non-utf8 chars
+	s, _ = string.gsub(s, "[\x00-\x1F\x7F]", function (c)
+		-- https://en.wikipedia.org/wiki/Caret_notation
+		-- can be done with just a XOR (which looks weird in Lua)
+		c = string.char(string.byte(c) ~ 64)
+		return "\x1b[35m^"..c.."\x1b[0m"
+	end)
+	return s
 end
