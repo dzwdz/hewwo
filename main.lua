@@ -1,4 +1,4 @@
--- the C api provides: writesock, setprompt
+-- the C api provides: writesock, setprompt, history_{add,resize}
 --           requires: init, in_net, in_user, completion
 
 require "irc"
@@ -29,6 +29,7 @@ function init()
 	printf("logging you in as %s. if you don't like that, try /nick", hi(conn.user))
 	writecmd("USER", conn.user, "localhost", "servername", "Real Name")
 	writecmd("NICK", conn.user)
+	history_resize(config.history_size)
 
 	conn.chan = nil
 end
@@ -50,6 +51,7 @@ function in_user(line)
 		conn.quit_hint = true
 		return
 	end
+	history_add(line)
 
 	if string.sub(line, 1, 1) == "/" then
 		if string.sub(line, 2, 2) == "/" then

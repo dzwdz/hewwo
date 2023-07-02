@@ -22,8 +22,6 @@ struct {
 	bool did_print; 
 } G;
 
-// general TODO: connection state machine
-
 static void
 l_callfn(char *name, char *arg)
 {
@@ -198,6 +196,23 @@ l_writesock(lua_State *L)
 	return 0;
 }
 
+static int
+l_history_add(lua_State *L)
+{
+	const char *s = luaL_checkstring(L, 1);
+	if (s) {
+		linenoiseHistoryAdd(s);
+	}
+	return 0;
+}
+
+static int
+l_history_resize(lua_State *L)
+{
+	linenoiseHistorySetMaxLen(luaL_checkinteger(L, 1));
+	return 0;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -229,6 +244,8 @@ main(int argc, char **argv)
 	lua_register(G.L, "print", l_print);
 	lua_register(G.L, "setprompt", l_setprompt);
 	lua_register(G.L, "writesock", l_writesock);
+	lua_register(G.L, "history_add", l_history_add);
+	lua_register(G.L, "history_resize", l_history_resize);
 	if (luaL_dostring(G.L, "require \"main\"")) {
 		printf("I've hit a Lua error :(\n%s\n", lua_tostring(G.L, -1));
 		exit(1);
