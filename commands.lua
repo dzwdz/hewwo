@@ -178,7 +178,7 @@ commands["who"] = function(_, ...)
 	end
 
 	local nicks = {}
-	for k, v in pairs(conn.chanusers[conn.chan]) do
+	for k, v in pairs(buffers.tbl[conn.chan].users) do
 		if v then
 			table.insert(nicks, k)
 		end

@@ -56,6 +56,7 @@ function buffers:make(buf)
 		self.tbl[buf].state = "unknown"
 		self.tbl[buf].unread = 0
 		self.tbl[buf].mentions = 0
+		self.tbl[buf].users = {}
 	end
 end
 

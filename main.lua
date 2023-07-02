@@ -17,7 +17,6 @@ conn = {
 	chan = nil,
 	pm_hint = nil,
 	quit_hint = nil,
-	chanusers = {},
 }
 
 function init()
@@ -106,19 +105,15 @@ function newcmd(line, remote)
 		if from == conn.user then
 			buffers.tbl[to].state = "connected"
 		end
-		if conn.chanusers[to] then
-			conn.chanusers[to][from] = true
-		end
+		buffers.tbl[to].users[from] = true
 	elseif cmd == "PART" then
 		buffers:push(to, line)
 		if from == conn.user then
 			-- TODO chanusers should be managed by buffers.lua
 			buffers.tbl[to].state = "parted"
-			conn.chanusers[to] = {}
+			buffers.tbl[to].users = {}
 		end
-		if conn.chanusers[to] then
-			conn.chanusers[to][from] = nil
-		end
+		buffers.tbl[to].users[from] = nil
 	elseif cmd == "INVITE" then
 		buffers:push(from, line, 1)
 	elseif cmd == "QUIT" then
@@ -128,10 +123,10 @@ function newcmd(line, remote)
 			urgency = -1
 			printcmd(line, os.time())
 		end
-		for chan,set in pairs(conn.chanusers) do
-			if set[from] then
+		for chan,buf in pairs(buffers.tbl) do
+			if buf.users[from] then
 				buffers:push(chan, line, urgency)
-				set[from] = nil
+				buf.users[from] = nil
 			end
 		end
 	elseif cmd == "NICK" then
@@ -142,11 +137,11 @@ function newcmd(line, remote)
 			urgency = -1
 			printcmd(line, os.time())
 		end
-		for chan,set in pairs(conn.chanusers) do
-			if set[from] then
+		for chan,buf in pairs(buffers.tbl) do
+			if buf.users[from] then
 				buffers:push(chan, line, urgency)
-				set[from] = nil
-				set[to] = true
+				buf.users[from] = nil
+				buf.users[to] = true
 			end
 		end
 	elseif cmd == RPL_ENDOFMOTD or cmd == ERR_NOMOTD then
@@ -172,10 +167,10 @@ function newcmd(line, remote)
 		writecmd("PONG", to)
 	elseif cmd == RPL_NAMREPLY then
 		to = args[4]
-		conn.chanusers[to] = conn.chanusers[to] or {}
+		buffers:make(to)
 		-- TODO incorrect nick parsing
 		for nick in string.gmatch(args[5], "[^ ,*?!@]+") do
-			conn.chanusers[to][nick] = true
+			buffers.tbl[to].users[nick] = true
 		end
 	end
 end
@@ -202,9 +197,9 @@ function completion(line)
 	end
 
 	if word == line then
-		addfrom(conn.chanusers[conn.chan], "", ": ")
+		addfrom(buffers.tbl[conn.chan].users, "", ": ")
 	else
-		addfrom(conn.chanusers[conn.chan])
+		addfrom(buffers.tbl[conn.chan].users)
 	end
 	addfrom(buffers.tbl)
 	addfrom(commands, "/")
