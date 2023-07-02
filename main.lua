@@ -35,7 +35,7 @@ end
 
 function in_net(line)
 	if config.debug then
-		print("<=", line)
+		print("<=", escape(line))
 	end
 	newcmd(line, true)
 	updateprompt()

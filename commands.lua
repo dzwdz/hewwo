@@ -78,7 +78,7 @@ end
 commands["buf"] = commands["buffer"]
 
 commands["action"] = function(line, ...)
-	local msg = "\1ACTION " .. string.gsub(line, "^[^ ]* *", "")
+	local msg = "\1ACTION " .. string.gsub(line, "^[^ ]* *", "") .. "\1"
 	writecmd("PRIVMSG", conn.chan, msg)
 end
 commands["me"] = commands["action"]
