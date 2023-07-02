@@ -53,7 +53,7 @@ end
 function buffers:make(buf)
 	if not self.tbl[buf] then
 		self.tbl[buf] = ringbuf:new(200)
-		self.tbl[buf].state = "unknown"
+		self.tbl[buf].connected = nil
 		self.tbl[buf].unread = 0
 		self.tbl[buf].mentions = 0
 		self.tbl[buf].users = {}

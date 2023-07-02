@@ -103,14 +103,13 @@ function newcmd(line, remote)
 	elseif cmd == "JOIN" then
 		buffers:push(to, line)
 		if from == conn.user then
-			buffers.tbl[to].state = "connected"
+			buffers.tbl[to].connected = true
 		end
 		buffers.tbl[to].users[from] = true
 	elseif cmd == "PART" then
 		buffers:push(to, line)
 		if from == conn.user then
-			-- TODO chanusers should be managed by buffers.lua
-			buffers.tbl[to].state = "parted"
+			buffers.tbl[to].connected = false
 			buffers.tbl[to].users = {}
 		end
 		buffers.tbl[to].users[from] = nil

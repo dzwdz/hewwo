@@ -104,12 +104,18 @@ end
 commands["buffers"] = function()
 	local total = 0
 	print("You're in:")
-	for k,v in pairs(buffers.tbl) do
-		local unread = ""
-		if v.unread > 0 then
-			unread = string.format("(%d unread)", v.unread)
+	for k,buf in pairs(buffers.tbl) do
+		local s = k
+		if buf.unread > 0 then
+			s = string.format("%s, %d unread", s, buf.unread)
 		end
-		print(k, v.state, unread)
+		if buf.mentions > 0 then
+			s = string.format("%s, %d mention(s)", s, buf.mentions)
+		end
+		if buf.connected == false then
+			s = s .. ", disconnected"
+		end -- can also be nil
+		print(s)
 		total = total + 1
 	end
 	printf("(%d buffers in total)", total)
