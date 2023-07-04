@@ -4,6 +4,9 @@ buffers = {
 
 function buffers:switch(chan)
 	printf("--- switching to %s", chan)
+	if conn.chan then
+		hint(i18n.buffer_hint, chan, conn.chan)
+	end
 	conn.chan = chan
 	if self.tbl[chan] then
 		-- TODO remember last seen message to prevent spam?

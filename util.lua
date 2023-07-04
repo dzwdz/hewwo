@@ -38,3 +38,11 @@ function escape(s) -- escape non-utf8 chars
 	s, _ = string.gsub(s, "[\x00-\x1F\x7F]", escape_char)
 	return s
 end
+
+used_hints = {}
+function hint(s, ...)
+	if not used_hints[s] then
+		printf(s, ...)
+		used_hints[s] = true
+	end
+end

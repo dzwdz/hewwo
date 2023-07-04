@@ -5,6 +5,7 @@ require "irc"
 require "commands"
 require "util"
 require "buffers"
+require "i18n"
 -- also see eof
 
 conn = {
@@ -15,8 +16,6 @@ conn = {
 	-- the connection from dropping
 
 	chan = nil,
-	pm_hint = nil,
-	quit_hint = nil,
 }
 
 function init()
@@ -44,10 +43,7 @@ end
 function in_user(line)
 	if line == "" then return end
 	if line == nil then
-		if not conn.quit_hint then
-			print("hint: if you meant to quit, try /QUIT")
-		end
-		conn.quit_hint = true
+		hint(i18n.quit_hint)
 		return
 	end
 	history_add(line)
@@ -264,10 +260,8 @@ function printcmd(rawline, ts, urgent_buf)
 			printf("%s %s", out_prefix, msg)
 		end
 
-		if private and not conn.pm_hint and from ~= conn.user then
-			printf([[hint: you've just received a private message!]])
-			printf([[      try "/msg %s [your reply]"]], from)
-			conn.pm_hint = true
+		if private and from ~= conn.user then
+			hint(i18n.query_hint, from)
 		end
 	elseif cmd == "JOIN" then
 		printf("%s --> %s has joined %s", out_prefix, hi(from), to)
