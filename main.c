@@ -93,7 +93,7 @@ mainloop(const char *host, const char *port)
 		if (FD_ISSET(0, &rfds)) {
 			char *line = linenoiseEditFeed(&G.ls);
 			if (line == linenoiseEditMore) continue;
-			linenoiseEditStopSilent(&G.ls);
+			linenoiseHide(&G.ls);
 			in_user(line);
 			linenoiseFree(line);
 			linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, G.prompt);
@@ -163,7 +163,7 @@ l_print(lua_State *L)
 		lua_writestring(s, l);
 		lua_pop(L, 1);
 	}
-	lua_writestring("\r\n", 2);
+	lua_writestring("\n", 1);
 	fflush(stdout);
 	return 0;
 }
