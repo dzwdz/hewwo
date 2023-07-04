@@ -24,8 +24,8 @@ function init()
 		config.nick = os.getenv("USER") or "townie"
 	end
 	conn.user = config.nick
-	printf("logging you in as %s. if you don't like that, try /nick", hi(conn.user))
-	writecmd("USER", conn.user, "localhost", "servername", "Real Name")
+	printf(i18n.connecting, hi(conn.user))
+	writecmd("USER", conn.user, "0", "*", config.ident.real_name)
 	writecmd("NICK", conn.user)
 	history_resize(config.history_size)
 
@@ -141,8 +141,7 @@ function newcmd(line, remote)
 		end
 	elseif cmd == RPL_ENDOFMOTD or cmd == ERR_NOMOTD then
 		conn.nick_verified = true
-		-- NOT in printcmd, as it's more of a reaction to state change
-		print([[ok, i'm connected! try "/join #newbirc" or "/help"]])
+		print(i18n.connected)
 		print()
 	elseif cmd == ERR_NICKNAMEINUSE then
 		if conn.nick_verified then
@@ -280,5 +279,6 @@ function printcmd(rawline, ts, urgent_buf)
 end
 
 config = {}
+config.ident = {}
 require "config_default"
 require "config" -- last so as to let it override stuff

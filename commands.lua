@@ -47,11 +47,12 @@ end
 commands["leave"] = commands["part"]
 
 commands["quit"] = function(line, ...)
+	-- remember all caps when you spell the command's name
 	if line == "/QUIT" then
 		writecmd("QUIT", config.quit_msg)
 		os.exit(0)
 	end
-	print("if you are sure you want to exit, type \"/QUIT\" (all caps)")
+	print(i18n.quit_failsafe)
 end
 
 commands["msg"] = function(line, user, ...)
@@ -65,7 +66,6 @@ commands["msg"] = function(line, user, ...)
 end
 commands["q"] = commands["msg"]
 commands["query"] = commands["msg"]
-set_cmd_help("query", "Send a private message to someone.")
 
 commands["buffer"] = function(line, ...)
 	if #{...} ~= 1 then
@@ -155,17 +155,15 @@ commands["help"] = function(_, what)
 				print("  "..help)
 			end
 		end
-	elseif what == "manual" or what == "unread" then
-		-- TODO help manual, unread, etc
-		printf("you fool! %s hasn't implemented this yet. we're doomed!", hi("dzwdz"))
 	else
-		if what then
-			printf([[i'm not sure what you meant by "%s" :(]], what)
+		local s = i18n.help[what or "main"]
+		if s then
+			print(s)
+		else
+			printf(i18n.help._unknown, what)
 		end
-		print([["/help cmd"    will list all the available commands]])
-		print([["/help manual" will show the manual]])
-		print([["/help unread" will explain the [0!0] thing in your prompt]])
 	end
+	print()
 end
 
 commands["unread"] = function()
@@ -213,4 +211,3 @@ commands["who"] = function(_, ...)
 	end
 end
 commands["nicks"] = commands["who"]
-set_cmd_help("who", "See who's in the current channel.")
