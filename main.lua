@@ -232,12 +232,19 @@ function printcmd(rawline, ts, urgent_buf)
 		if string.sub(to, 1, 1) ~= "#" then
 			private = true
 		end
-		if string.sub(msg, 1, 7) == "\1ACTION" then
-			-- TODO strip trailing \1
-			action = true
-			msg = string.sub(msg, 9)
+		if string.sub(msg, 1, 1) == "\1" then
+			-- CTCP
+			msg = string.gsub(string.sub(msg, 2), "\1$", "")
+			local ctcp_cmd = string.upper(string.match(msg, "^[^\0\1\r\n ]+"))
+			if ctcp_cmd == "ACTION" then
+				action = true
+				msg = string.sub(msg, 8)
+			else
+				return -- unknown command
+			end
 		end
 
+		msg = escape(msg)
 		-- highlight own nick
 		msg = string.gsub(msg, nick_pattern(conn.user), hi(conn.user))
 
