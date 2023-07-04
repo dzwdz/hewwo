@@ -211,3 +211,35 @@ commands["who"] = function(_, ...)
 	end
 end
 commands["nicks"] = commands["who"]
+
+commands["warp"] = function(_, ...)
+	if #{...} ~= 1 then
+		printf("/warp takes exactly one argument")
+		return
+	end
+
+	local pattern = ...
+	if buffers.tbl["#"..pattern] then
+		buffers:switch("#"..pattern)
+	elseif buffers.tbl[pattern] then
+		buffers:switch(pattern)
+	else
+		local matches = {}
+		for k,_ in pairs(buffers.tbl) do
+			if string.find(k, pattern) then
+				table.insert(matches, k)
+			end
+		end
+		if #matches == 0 then
+			printf([[no buffer found matching "%s"]], pattern)
+		elseif #matches == 1 then
+			buffers:switch(matches[1])
+		else
+			printf([[found multiple buffers matching "%s":]], pattern)
+			for _,v in ipairs(matches) do
+				print(v)
+			end
+		end
+	end
+end
+commands["w"] = commands["warp"]
