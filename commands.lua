@@ -23,19 +23,21 @@ function cmd_parse(line, max_args)
 			break
 		end
 	end
+	args[0] = string.gsub(args[1], "^/", "")
+	table.remove(args, 1)
 	return args
 end
 run_test(function(t)
-	t(cmd_parse("/q dzwdz blah blah"), {"/q", "dzwdz", "blah", "blah"})
-	t(cmd_parse("/q dzwdz blah blah", 2), {"/q", "dzwdz", "blah blah"})
-	t(cmd_parse("/q   dzwdz   blah   blah", 2), {"/q", "dzwdz", "blah   blah"})
+	t(cmd_parse("/q dzwdz blah blah"), {[0]="q", "dzwdz", "blah", "blah"})
+	t(cmd_parse("/q dzwdz blah blah", 2), {[0]="q", "dzwdz", "blah blah"})
+	t(cmd_parse("/q   dzwdz   blah   blah", 2), {[0]="q", "dzwdz", "blah   blah"})
 end)
 
-commands["nick"] = function(_, ...)
-	if #{...} == 0 then
+commands["nick"] = function(line, args)
+	if #args == 0 then
 		printf("your nick is %s", hi(conn.user))
-	elseif #{...} == 1 then
-		local nick = ...
+	elseif #args == 1 then
+		local nick = args[1]
 		-- TODO validate nick
 		writecmd("NICK", nick)
 		if not conn.nick_verified then
@@ -47,79 +49,89 @@ commands["nick"] = function(_, ...)
 	end
 end
 
-commands["join"] = function(_, ...)
-	if #{...} == 0 then
+commands["join"] = function(line, args)
+	if #args == 0 then
 		print("missing argument. try /join #tildetown")
 		return
 	end
 	-- TODO check conn.nick_verified
-	for i, v in ipairs({...}) do
+	for i, v in ipairs(args) do
 		writecmd("JOIN", v)
 		buffers:make(v)
 	end
-	local last = ({...})[#{...}] -- wonderful syntax
+	local last = args[#args]
 	buffers:switch(last)
 end
 
-commands["part"] = function(_, ...)
-	if #{...} == 0 then
+commands["part"] = function(line, args)
+	if #args == 0 then
 		writecmd("PART", conn.chan)
 	else
-		for i, v in ipairs({...}) do
+		for i, v in ipairs(args) do
 			writecmd("PART", v)
 		end
 	end
 end
 commands["leave"] = commands["part"]
 
-commands["quit"] = function(line, ...)
+commands["quit"] = function(line, args)
 	-- remember all caps when you spell the command's name
-	if line == "/QUIT" then
-		writecmd("QUIT", config.quit_msg)
+	if args[0] == "QUIT" then
+		args = cmd_parse(line, 1)
+		writecmd("QUIT", args[1] or config.quit_msg)
 		os.exit(0)
+	else
+		print(i18n.quit_failsafe)
 	end
-	print(i18n.quit_failsafe)
 end
 
-commands["msg"] = function(line, user, ...)
-	if not user then
-		print("usage: /msg [user] blah blah blah")
-		return
+commands["msg"] = function(line, args)
+	local args = cmd_parse(line, 2)
+	if #args == 2 then
+		writecmd("PRIVMSG", args[1], args[2])
+		conn.pm_hint = true -- TODO move to the new hint system
+	else
+		printf("usage: /%s [user] blah blah blah", args[0])
 	end
-	local msg = string.gsub(line, "^[^ ]* *[^ ]* *", "")
-	writecmd("PRIVMSG", user, msg)
-	conn.pm_hint = true
 end
 commands["q"] = commands["msg"]
 commands["query"] = commands["msg"]
 
-commands["buffer"] = function(line, ...)
-	if #{...} ~= 1 then
-		print("/buf takes in exactly one argument - a channel/username")
+commands["buffer"] = function(line, args)
+	if #args ~= 1 then
+		printf("/%s takes in exactly one argument - a channel/username", args[0])
 		return
 	end
-	local chan = ...
-	buffers:switch(chan)
+	buffers:switch(args[1])
 end
 commands["buf"] = commands["buffer"]
 
-commands["action"] = function(line, ...)
-	local msg = "\1ACTION " .. string.gsub(line, "^[^ ]* *", "") .. "\1"
-	writecmd("PRIVMSG", conn.chan, msg)
+commands["action"] = function(line, args)
+	if not conn.chan then
+		print("you must enter a channel first")
+		return
+	end
+	local content = cmd_parse(line, 1)[1] or ""
+	writecmd("PRIVMSG", conn.chan, "\1ACTION "..content.."\1")
 end
 commands["me"] = commands["action"]
 
-commands["lua"] = function(line, ...)
-	line = string.gsub(line, "^[^ ]* *", "")
+commands["lua"] = function(line, args)
+	args = cmd_parse(line, 1)
+	if #args == 0 then
+		printf("try /%s 2 + 2", args[0])
+		return
+	end
+
 	-- hmm, should this maybe be a custom buffer?
-	printf("lua: %s", line)
-	local fn, err = load(line, "=(user)")
+	printf("lua: %s", args[1])
+	local fn, err = load(args[1], "=(user)")
 	if fn then
 		fn()
 		return
 	end
 	-- try wrapping in print()
-	local fn, _ = load("print("..line..")", "=(user)")
+	local fn, _ = load("print("..args[1]..")", "=(user)")
 	if fn then
 		fn()
 		return
@@ -149,7 +161,8 @@ end
 commands["bufs"] = commands["buffers"]
 commands["ls"] = commands["buffers"]
 
-commands["help"] = function(_, what)
+commands["help"] = function(line, args)
+	local what = args[1]
 	if what == "cmd" then
 		local aliases = {}
 		local aliases_ord = {}
@@ -192,13 +205,8 @@ commands["help"] = function(_, what)
 	print()
 end
 
-commands["unread"] = function()
-	-- TODO /unread
-	print("actually, go figure it out on your own. this isn't implemented yet")
-end
-
-commands["who"] = function(_, ...)
-	if #{...} ~= 0 then
+commands["who"] = function(line, args)
+	if #args ~= 0 then
 		printf("/who doesn't support any arguments yet")
 		return
 	end
@@ -218,7 +226,7 @@ commands["who"] = function(_, ...)
 	local s = ""
 	local slen = 0
 	printf("people in %s:", conn.chan)
-	for _, nick in ipairs(nicks) do
+	for line, argsk in ipairs(nicks) do
 		-- TODO unicode view len
 		local len = string.len(nick) + 4
 		local padlen = -len % 12
@@ -238,13 +246,13 @@ commands["who"] = function(_, ...)
 end
 commands["nicks"] = commands["who"]
 
-commands["warp"] = function(_, ...)
-	if #{...} ~= 1 then
+commands["warp"] = function(line, args)
+	if #args ~= 1 then
 		printf("/warp takes exactly one argument")
 		return
 	end
 
-	local pattern = ...
+	local pattern = args[1]
 	if buffers.tbl["#"..pattern] then
 		buffers:switch("#"..pattern)
 	elseif buffers.tbl[pattern] then

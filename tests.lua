@@ -27,7 +27,7 @@ function inspect(a)
 		end
 		for k,v in pairs(a) do
 			if not used[k] then
-				s = s .. inspect(k) .. "=" .. inspect(v) .. ", "
+				s = s .. "[" .. inspect(k) .. "]=" .. inspect(v) .. ", "
 			end
 		end
 		s = string.gsub(s, ", $", "")

@@ -54,15 +54,12 @@ function in_user(line)
 			line = string.sub(line, 2)
 			writecmd("PRIVMSG", conn.chan, line)
 		else
-			local args = {}
-			for arg in string.gmatch(string.sub(line, 2), "[^ ]+") do
-				table.insert(args, arg)
-			end
-			local cmd = commands[string.lower(args[1])]
+			local args = cmd_parse(line)
+			local cmd = commands[string.lower(args[0])]
 			if cmd then
-				cmd(line, table.unpack(args, 2))
+				cmd(line, args)
 			else
-				print("unknown command \"/"..args[1].."\"")
+				print("unknown command \"/"..args[0].."\"")
 			end
 		end
 	elseif conn.chan then
