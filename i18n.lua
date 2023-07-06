@@ -43,6 +43,18 @@ ok, i'm connected! try "/join #newbirc" or "/help"]]
 i18n.quit_failsafe = [[
 if you are sure you want to close the client, type "/QUIT" (all caps)]]
 
+
+-- TODO add instructions on how to scroll to the wiki
+i18n.list_after = [[
+
+those are all the channels on this server. hopefully that wasn't too
+overwhelming. you should be able to scroll the list.
+if you can't, you can either:
+1. run "/list | less"
+2. try using tmux: https://tilde.town/wiki/learn/tmux.html
+]]
+
+
 set_cmd_help("query", [[Send a private message to someone.]])
 set_cmd_help("quit", [[Leave all channels and close hewwo.]])
 set_cmd_help("who", [[See who's in the current channel.]])

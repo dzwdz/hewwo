@@ -292,3 +292,7 @@ commands["topic"] = function(line, args)
 		writecmd("TOPIC", conn.chan, args[1])
 	end
 end
+
+commands["list"] = function(line, args)
+	writecmd("LIST", ">0")
+end

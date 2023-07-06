@@ -147,6 +147,10 @@ function newcmd(line, remote)
 		local urgency = 0
 		if from == conn.user then urgency = 1 end
 		buffers:push(to, line, urgency)
+	elseif cmd == RPL_LIST or cmd == RPL_LISTEND then
+		-- TODO list output should probably be pushed into a server buffer
+		-- but switching away from the current buffer could confuse users?
+		printcmd(line, os.time())
 	elseif cmd == ERR_NICKNAMEINUSE then
 		if conn.nick_verified then
 			printf("%s is taken, leaving your nick as %s", hi(args[3]), hi(conn.user))
@@ -281,6 +285,14 @@ function printcmd(rawline, ts, urgent_buf)
 	elseif cmd == "TOPIC" then
 		-- TODO it'd be nice to store the old topic
 		printf([[%s %s set %s's topic to "%s"]], out_prefix, from, to, args[3])
+	elseif cmd == RPL_LIST then
+		if args[5] ~= "" then
+			printf([[%s %s, %s users, %s]], out_prefix, args[3], args[4], args[5])
+		else
+			printf([[%s %s, %s users]], out_prefix, args[3], args[4])
+		end
+	elseif cmd == RPL_LISTEND then
+		printf(i18n.list_after)
 	else
 		-- TODO config.debug levels
 		printf([[error in hewwo: printcmd can't handle "%s"]], cmd)

@@ -1,3 +1,5 @@
+RPL_LIST = "322"
+RPL_LISTEND = "323"
 RPL_TOPIC = "332"
 RPL_NAMREPLY = "353"
 RPL_ENDOFMOTD = "376"
@@ -10,9 +12,9 @@ function writecmd(...)
 	for i, v in ipairs({...}) do
 		if i ~= 1 then
 			cmd = cmd .. " "
-		end
-		if i == #{...} then
-			cmd = cmd .. ":"
+			if i == #{...} then
+				cmd = cmd .. ":"
+			end
 		end
 		cmd = cmd .. v
 	end
