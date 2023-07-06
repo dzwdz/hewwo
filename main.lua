@@ -1,9 +1,10 @@
 -- the C api provides: writesock, setprompt, history_{add,resize}
 --           requires: init, in_net, in_user, completion
 
+require "tests"
+require "util"
 require "irc"
 require "commands"
-require "util"
 require "buffers"
 require "i18n"
 -- also see eof

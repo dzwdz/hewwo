@@ -5,6 +5,32 @@ function set_cmd_help(cmd, help)
 	commands_help[commands[cmd]] = help
 end
 
+-- max_args doesn't include the command itself
+-- see below for examples
+function cmd_parse(line, max_args)
+	-- line = string.gsub(line, "^ *", "")  guaranteed to start with /
+	line = string.gsub(line, " *$", "")
+
+	local args = {}
+	local pos = 1
+	while true do
+		local ws, we = string.find(line, " +", pos)
+		if ws and (not max_args or #args < max_args) then
+			table.insert(args, string.sub(line, pos, ws-1))
+			pos = we + 1
+		else
+			table.insert(args, string.sub(line, pos))
+			break
+		end
+	end
+	return args
+end
+run_test(function(t)
+	t(cmd_parse("/q dzwdz blah blah"), {"/q", "dzwdz", "blah", "blah"})
+	t(cmd_parse("/q dzwdz blah blah", 2), {"/q", "dzwdz", "blah blah"})
+	t(cmd_parse("/q   dzwdz   blah   blah", 2), {"/q", "dzwdz", "blah   blah"})
+end)
+
 commands["nick"] = function(_, ...)
 	if #{...} == 0 then
 		printf("your nick is %s", hi(conn.user))
