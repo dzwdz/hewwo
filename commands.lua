@@ -277,3 +277,18 @@ commands["warp"] = function(line, args)
 	end
 end
 commands["w"] = commands["warp"]
+
+commands["topic"] = function(line, args)
+	if #args == 0 then
+		print("usage: /topic [a topic for the current channel]")
+		print("       /topic #stuff [a topic for #stuff]")
+		return
+	end
+	if string.sub(args[1], 1, 1) == "#" then
+		args = cmd_parse(line, 2)
+		writecmd("TOPIC", args[1], args[2])
+	else
+		args = cmd_parse(line, 1)
+		writecmd("TOPIC", conn.chan, args[1])
+	end
+end

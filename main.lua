@@ -141,6 +141,12 @@ function newcmd(line, remote)
 		conn.nick_verified = true
 		print(i18n.connected)
 		print()
+	elseif cmd == RPL_TOPIC then
+		buffers:push(args[3], line)
+	elseif cmd == "TOPIC" then
+		local urgency = 0
+		if from == conn.user then urgency = 1 end
+		buffers:push(to, line, urgency)
 	elseif cmd == ERR_NICKNAMEINUSE then
 		if conn.nick_verified then
 			printf("%s is taken, leaving your nick as %s", hi(args[3]), hi(conn.user))
@@ -270,6 +276,11 @@ function printcmd(rawline, ts, urgent_buf)
 		printf("%s <-- %s has quit (%s)", out_prefix, hi(from), args[2])
 	elseif cmd == "NICK" then
 		printf("%s %s is now known as %s", out_prefix, hi(from), hi(to))
+	elseif cmd == RPL_TOPIC then
+		printf([[%s -- %s's topic is "%s"]], out_prefix, args[3], args[4])
+	elseif cmd == "TOPIC" then
+		-- TODO it'd be nice to store the old topic
+		printf([[%s %s set %s's topic to "%s"]], out_prefix, from, to, args[3])
 	else
 		-- TODO config.debug levels
 		printf([[error in hewwo: printcmd can't handle "%s"]], cmd)
