@@ -72,7 +72,9 @@ end
 
 -- Called for new commands, both from the server and from the client.
 function newcmd(line, remote)
-	local prefix, from, args = parsecmd(line)
+	local args = parsecmd(line)
+	local prefix = args.prefix
+	local from = args.user
 	local cmd = string.upper(args[1])
 	local to = args[2] -- not always valid!
 
@@ -82,17 +84,29 @@ function newcmd(line, remote)
 	end
 
 	if cmd == "PRIVMSG" then
-		local msg = args[3]
-		-- TODO will incorrectly detect pings in CTCP verbs
-
-		if to == conn.user then -- direct message
-			buffers:push(from, line, 1)
-		else
-			local urgency = 0
-			if string.match(msg, nick_pattern(conn.user)) or from == conn.user then
-				urgency = 1
+		if not args.ctcp or args.ctcp.cmd == "ACTION" then
+			local msg
+			if not args.ctcp then
+				msg = args[3]
+			else
+				msg = args.ctcp.params or ""
 			end
-			buffers:push(to, line, urgency)
+
+			-- TODO factor out dm checking for consistency
+			if to == conn.user then -- direct message
+				buffers:push(from, line, 1)
+			else
+				local urgency = 0
+				if string.match(msg, nick_pattern(conn.user)) or from == conn.user then
+					urgency = 1
+				end
+				buffers:push(to, line, urgency)
+			end
+		-- TODO display CTCP queries and responses!
+		elseif args.ctcp.cmd == "VERSION" then
+			writecmd("NOTICE", from, "\1VERSION hewwo\1")
+		elseif args.ctcp.cmd == "PING" then
+			writecmd("NOTICE", from, args[3])
 		end
 	elseif cmd == "JOIN" then
 		buffers:push(to, line)
@@ -222,7 +236,9 @@ function printcmd(rawline, ts, urgent_buf)
 		out_prefix = string.format("%s %s:", out_prefix, urgent_buf)
 	end
 
-	local prefix, from, args = parsecmd(rawline)
+	local args = parsecmd(rawline)
+	local prefix = args.prefix
+	local from = args.user
 	local cmd = string.upper(args[1])
 	local to = args[2] -- not always valid!
 
@@ -235,15 +251,12 @@ function printcmd(rawline, ts, urgent_buf)
 		if string.sub(to, 1, 1) ~= "#" then
 			private = true
 		end
-		if string.sub(msg, 1, 1) == "\1" then
-			-- CTCP
-			msg = string.gsub(string.sub(msg, 2), "\1$", "")
-			local ctcp_cmd = string.upper(string.match(msg, "^[^\0\1\r\n ]+"))
-			if ctcp_cmd == "ACTION" then
+		if args.ctcp then
+			if args.ctcp.cmd == "ACTION" then
 				action = true
-				msg = string.sub(msg, 8)
+				msg = args.ctcp.params
 			else
-				return -- unknown command
+				return
 			end
 		end
 

@@ -28,20 +28,18 @@ function writecmd(...)
 end
 
 function parsecmd(line)
-	local prefix = nil
-	local user = nil
-	local args = {}
+	local data = {}
 
 	local pos = 1
 	if string.sub(line, 1, 1) == ":" then
 		pos = string.find(line, " ")
 		if not pos then return end -- invalid message
-		prefix = string.sub(line, 2, pos-1)
+		data.prefix = string.sub(line, 2, pos-1)
 		pos = pos+1
 
-		excl = string.find(prefix, "!")
+		excl = string.find(data.prefix, "!")
 		if excl then
-			user = string.sub(prefix, 1, excl-1)
+			data.user = string.sub(data.prefix, 1, excl-1)
 		end
 	end
 	while pos <= string.len(line) do
@@ -54,9 +52,22 @@ function parsecmd(line)
 		if not nextpos then
 			nextpos = string.len(line)+1
 		end
-		table.insert(args, string.sub(line, pos, nextpos-1))
+		table.insert(data, string.sub(line, pos, nextpos-1))
 		pos = nextpos+1
 	end
 
-	return prefix, user, args
+	local cmd = string.upper(data[1])
+	if cmd == "PRIVMSG" and string.sub(data[3], 1, 1) == "\1" then
+		data.ctcp = {}
+		local inner = string.gsub(string.sub(data[3], 2), "\1$", "")
+		local split = string.find(inner, " ", 2)
+		if split then
+			data.ctcp.cmd = string.upper(string.sub(inner, 1, split-1))
+			data.ctcp.params = string.sub(inner, split+1)
+		else
+			data.ctcp.cmd = string.upper(inner)
+		end
+	end
+
+	return data
 end
