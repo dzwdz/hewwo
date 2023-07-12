@@ -4,15 +4,18 @@
  * main.lua.
  */
 
+#include "hewwo.h"
 #include "linenoise/linenoise.h"
 #include "lua/lauxlib.h"
 #include "lua/lualib.h"
-#include "hewwo.h"
+#include <errno.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/select.h>
+#include <unistd.h>
 
 struct {
 	struct linenoiseState ls;
@@ -20,6 +23,10 @@ struct {
 	int fd;
 	char *prompt;
 	bool did_print; 
+
+	char *ext_cmd;
+	pid_t ext_pid;
+	bool sigchld;
 } G;
 
 static void
@@ -58,6 +65,34 @@ in_user(char *line)
 	l_callfn("in_user", line);
 }
 
+static void
+sigchld(int signo)
+{
+	(void)signo;
+	G.sigchld = true;
+}
+
+static void
+ext_run(void)
+{
+	char *cmd = G.ext_cmd;
+	int ret;
+	if (G.ext_pid || G.ext_cmd == NULL) return;
+	linenoiseHide(&G.ls);
+
+	G.ext_cmd = NULL;
+
+	ret = fork();
+	if (ret == -1) {
+		perror("fork()");
+	} else if (ret == 0) {
+		exit(system(cmd));
+	} else {
+		G.ext_pid = ret;
+	}
+	free(cmd);
+}
+
 void
 mainloop(const char *host, const char *port)
 {
@@ -81,29 +116,45 @@ mainloop(const char *host, const char *port)
 		int ret;
 
 		FD_ZERO(&rfds);
-		FD_SET(0, &rfds);
+		if (G.ext_pid == 0) {
+			FD_SET(0, &rfds);
+		}
 		FD_SET(G.fd, &rfds);
 
-		ret = select(G.fd+1, &rfds, NULL, NULL, NULL);
-		if (ret == -1) {
-			linenoiseEditStop(&G.ls);
-			perror("select()");
-			exit(1);
+		errno = 0;
+		if (!G.sigchld) {
+			ret = select(G.fd+1, &rfds, NULL, NULL, NULL);
+			if (ret >= 0) {
+				if (FD_ISSET(0, &rfds)) {
+					char *line = linenoiseEditFeed(&G.ls);
+					if (line == linenoiseEditMore) continue;
+					linenoiseHide(&G.ls);
+					in_user(line);
+					linenoiseFree(line);
+					linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, G.prompt);
+				}
+				if (FD_ISSET(G.fd, &rfds)) {
+					bufio_read(bi, G.fd, in_net);
+				}
+			} else if (ret == -1 && errno != EINTR) {
+				linenoiseEditStop(&G.ls);
+				perror("select()");
+				exit(1);
+			}
+		} else {
+			G.sigchld = false;
 		}
-		if (FD_ISSET(0, &rfds)) {
-			char *line = linenoiseEditFeed(&G.ls);
-			if (line == linenoiseEditMore) continue;
-			linenoiseHide(&G.ls);
-			in_user(line);
-			linenoiseFree(line);
-			linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, G.prompt);
-		}
-		if (FD_ISSET(G.fd, &rfds)) {
-			bufio_read(bi, G.fd, in_net);
+		if (G.ext_pid && waitpid(G.ext_pid, NULL, WNOHANG) == G.ext_pid) {
+			G.ext_pid = false;
+			linenoiseShow(&G.ls);
+			G.did_print = false;
 		}
 		if (G.did_print) {
 			linenoiseShow(&G.ls);
 			G.did_print = false;
+		}
+		if (G.ext_cmd) {
+			ext_run();
 		}
 	}
 }
@@ -147,6 +198,11 @@ completion(const char *buf, linenoiseCompletions *lc)
 static int
 l_print(lua_State *L)
 {
+	if (G.ext_pid) {
+		// TODO pipe to child
+		return 0;
+	}
+
 	/* based on luaB_print */
 	if (!G.did_print) {
 		linenoiseHide(&G.ls);
@@ -213,6 +269,13 @@ l_history_resize(lua_State *L)
 	return 0;
 }
 
+static int
+l_ext_run(lua_State *L)
+{
+	G.ext_cmd = strdup(luaL_checkstring(L, 1));
+	return 0;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -227,6 +290,15 @@ main(int argc, char **argv)
 	G.L = luaL_newstate();
 	G.did_print = true;
 	G.prompt = strdup(": ");
+
+	{
+		struct sigaction sa = {0};
+		sa.sa_handler = sigchld;
+		if (sigaction(SIGCHLD, &sa, NULL) == -1) {
+			perror("sigaction()");
+			exit(1);
+		}
+	}
 
 	luaL_openlibs(G.L);
 
@@ -246,6 +318,7 @@ main(int argc, char **argv)
 	lua_register(G.L, "writesock", l_writesock);
 	lua_register(G.L, "history_add", l_history_add);
 	lua_register(G.L, "history_resize", l_history_resize);
+	lua_register(G.L, "ext_run", l_ext_run);
 	if (luaL_dostring(G.L, "require \"main\"")) {
 		printf("I've hit a Lua error :(\n%s\n", lua_tostring(G.L, -1));
 		exit(1);
