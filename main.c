@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/select.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 struct {
@@ -26,6 +27,7 @@ struct {
 
 	char *ext_cmd;
 	pid_t ext_pid;
+	FILE *ext_pipe;
 	bool sigchld;
 } G;
 
@@ -76,19 +78,31 @@ static void
 ext_run(void)
 {
 	char *cmd = G.ext_cmd;
+	int pipefd[2];
 	int ret;
 	if (G.ext_pid || G.ext_cmd == NULL) return;
 	linenoiseHide(&G.ls);
 
 	G.ext_cmd = NULL;
+	if (pipe(pipefd) == -1) {
+		perror("pipe()");
+		return;
+	}
 
 	ret = fork();
 	if (ret == -1) {
 		perror("fork()");
+		close(pipefd[0]);
+		close(pipefd[1]);
 	} else if (ret == 0) {
+		dup2(pipefd[0], STDIN_FILENO);
+		close(pipefd[1]);
 		exit(system(cmd));
 	} else {
 		G.ext_pid = ret;
+		close(pipefd[0]);
+		if (G.ext_pipe) fclose(G.ext_pipe);
+		G.ext_pipe = fdopen(pipefd[1], "a");
 	}
 	free(cmd);
 }
@@ -146,6 +160,9 @@ mainloop(const char *host, const char *port)
 		}
 		if (G.ext_pid && waitpid(G.ext_pid, NULL, WNOHANG) == G.ext_pid) {
 			G.ext_pid = false;
+			fclose(G.ext_pipe);
+			G.ext_pipe = NULL;
+
 			linenoiseShow(&G.ls);
 			G.did_print = false;
 		}
@@ -198,15 +215,20 @@ completion(const char *buf, linenoiseCompletions *lc)
 static int
 l_print(lua_State *L)
 {
-	if (G.ext_pid) {
-		// TODO pipe to child
-		return 0;
-	}
-
+	FILE *fp = stdout;
 	/* based on luaB_print */
-	if (!G.did_print) {
-		linenoiseHide(&G.ls);
-		G.did_print = true;
+
+	if (G.ext_pid) {
+		if (G.ext_pipe) {
+			fp = G.ext_pipe;
+		} else {
+			return 0;
+		}
+	} else {
+		if (!G.did_print) {
+			linenoiseHide(&G.ls);
+			G.did_print = true;
+		}
 	}
 
 	int n = lua_gettop(L); 
@@ -214,13 +236,13 @@ l_print(lua_State *L)
 		size_t l;
 		const char *s = luaL_tolstring(L, i, &l);
 		if (i > 1) {
-			lua_writestring("\t", 1);
+			fwrite("\t", 1, 1, fp);
 		}
-		lua_writestring(s, l);
+		fwrite(s, 1, l, fp);
 		lua_pop(L, 1);
 	}
-	lua_writestring("\n", 1);
-	fflush(stdout);
+	fwrite("\n", 1, 1, fp);
+	fflush(fp);
 	return 0;
 }
 
