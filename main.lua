@@ -33,7 +33,13 @@ local _ext_pipe = false
 function print(...)
 	if ext_running then
 		if _ext_pipe then
-			print_internal(...)
+			local args = {...}
+			for k,v in ipairs(args) do
+				if type(v) == "string" then
+					args[k] = ansi_strip(v)
+				end
+			end
+			print_internal(table.unpack(args))
 		else
 			ext_ringbuf:push({...})
 		end

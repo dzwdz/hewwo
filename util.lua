@@ -39,6 +39,11 @@ function escape(s) -- escape non-utf8 chars
 	return s
 end
 
+function ansi_strip(s)
+	return string.gsub(s, "\x1b%[[^\x40-\x7E]*[\x40-\x7E]", "")
+end
+
+
 used_hints = {}
 function hint(s, ...)
 	if not used_hints[s] then
