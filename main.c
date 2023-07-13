@@ -160,8 +160,11 @@ mainloop(const char *host, const char *port)
 		}
 		if (G.ext_pid && waitpid(G.ext_pid, NULL, WNOHANG) == G.ext_pid) {
 			G.ext_pid = false;
-			fclose(G.ext_pipe);
+			if (G.ext_pipe) {
+				fclose(G.ext_pipe);
+			}
 			G.ext_pipe = NULL;
+			l_callfn("ext_quit", NULL);
 
 			linenoiseShow(&G.ls);
 			G.did_print = false;
@@ -298,6 +301,15 @@ l_ext_run(lua_State *L)
 	return 0;
 }
 
+static int
+l_ext_eof(lua_State *L)
+{
+	(void)L;
+	if (G.ext_pipe) fclose(G.ext_pipe);
+	G.ext_pipe = NULL;
+	return 0;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -335,12 +347,14 @@ main(int argc, char **argv)
 	lua_settop(G.L, base);
 
 	/* prepare the c/lua interface */
-	lua_register(G.L, "print", l_print);
+	// TODO turn into a lua module
+	lua_register(G.L, "print_internal", l_print);
 	lua_register(G.L, "setprompt", l_setprompt);
 	lua_register(G.L, "writesock", l_writesock);
 	lua_register(G.L, "history_add", l_history_add);
 	lua_register(G.L, "history_resize", l_history_resize);
-	lua_register(G.L, "ext_run", l_ext_run);
+	lua_register(G.L, "ext_run_internal", l_ext_run);
+	lua_register(G.L, "ext_eof", l_ext_eof);
 	if (luaL_dostring(G.L, "require \"main\"")) {
 		printf("I've hit a Lua error :(\n%s\n", lua_tostring(G.L, -1));
 		exit(1);

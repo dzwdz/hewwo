@@ -1,5 +1,8 @@
--- the C api provides: writesock, setprompt, history_{add,resize}
---           requires: init, in_net, in_user, completion
+-- the C api provides:
+-- writesock, setprompt, history_{add,resize}
+-- print_internal, ext_run_internal, ext_eof
+
+-- requires: init, in_net, in_user, completion, ext_quit
 
 require "tests"
 require "util"
@@ -18,6 +21,49 @@ conn = {
 
 	chan = nil,
 }
+
+
+-- The whole external program piping shebang.
+-- Basically: if an external program is launched, print() should
+--            either buffer up the input to show later, or pipe it
+--            to the program.
+local ext_running = false
+local ext_ringbuf = nil
+local _ext_pipe = false
+function print(...)
+	if ext_running then
+		if _ext_pipe then
+			print_internal(...)
+		else
+			ext_ringbuf:push({...})
+		end
+	else
+		print_internal(...)
+	end
+end
+
+function ext_run(cmdline)
+	if ext_running then return end
+	ext_running = true
+	ext_ringbuf = ringbuf:new(500)
+	ext_run_internal(cmdline)
+	_ext_pipe = false
+end
+
+function ext_setpipe(b)
+	_ext_pipe = b
+end
+
+function ext_quit()
+	ext_running = false
+	-- TODO notify the user if the ringbuf overflowed
+	print_internal("printing the messages you've missed...")
+	for v in ext_ringbuf:iter(ext_ringbuf) do
+		print_internal(table.unpack(v))
+	end
+	ext_ringbuf = nil
+end
+
 
 function init()
 	if not config.nick then
@@ -164,7 +210,12 @@ function newcmd(line, remote)
 	elseif cmd == RPL_LIST or cmd == RPL_LISTEND then
 		-- TODO list output should probably be pushed into a server buffer
 		-- but switching away from the current buffer could confuse users?
+
+		-- TODO save the command that triggered the ext process
+		-- and only setpipe if it was list
+		ext_setpipe(true)
 		printcmd(line, os.time())
+		ext_setpipe(false)
 	elseif cmd == ERR_NICKNAMEINUSE then
 		if conn.nick_verified then
 			printf("%s is taken, leaving your nick as %s", hi(args[3]), hi(conn.user))
@@ -306,6 +357,7 @@ function printcmd(rawline, ts, urgent_buf)
 		end
 	elseif cmd == RPL_LISTEND then
 		printf(i18n.list_after)
+		ext_eof()
 	else
 		-- TODO config.debug levels
 		printf([[error in hewwo: printcmd can't handle "%s"]], cmd)
