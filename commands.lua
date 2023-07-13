@@ -7,12 +7,19 @@ end
 
 -- max_args doesn't include the command itself
 -- see below for examples
-function cmd_parse(line, max_args)
+function cmd_parse(line, max_args, pipe)
 	-- line = string.gsub(line, "^ *", "")  guaranteed to start with /
-	line = string.gsub(line, " *$", "")
 
 	local args = {}
 	local pos = 1
+	if pipe then
+		local split = string.find(line, "|")
+		if split then
+			args.pipe = string.sub(line, split+1)
+			line = string.sub(line, 1, split-1)
+		end
+	end
+	line = string.gsub(line, " *$", "")
 	while true do
 		local ws, we = string.find(line, " +", pos)
 		if ws and (not max_args or #args < max_args) then
@@ -31,6 +38,11 @@ run_test(function(t)
 	t(cmd_parse("/q dzwdz blah blah"), {[0]="q", "dzwdz", "blah", "blah"})
 	t(cmd_parse("/q dzwdz blah blah", 2), {[0]="q", "dzwdz", "blah blah"})
 	t(cmd_parse("/q   dzwdz   blah   blah", 2), {[0]="q", "dzwdz", "blah   blah"})
+
+	t(cmd_parse("/list | less"), 
+		{[0]="list", "|", "less"})
+	t(cmd_parse("/list | less", nil, true), 
+		{[0]="list", ["pipe"]=" less"})
 end)
 
 commands["nick"] = function(line, args)
@@ -294,5 +306,14 @@ commands["topic"] = function(line, args)
 end
 
 commands["list"] = function(line, args)
-	writecmd("LIST", ">0")
+	args = cmd_parse(line, nil, true)
+	if #args ~= 0 then
+		print([[/list currently doesn't take any arguments]])
+		print([[did you maybe mean?  /list | less]])
+		return
+	end
+	if args.pipe then
+		ext_run(args.pipe)
+	end
+	writecmd("LIST", ">1")
 end
