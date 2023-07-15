@@ -1,6 +1,9 @@
+-- If you need a reference, "/config" will output the location of the default
+-- config on your system.
+-- Also, https://github.com/dzwdz/hewwo/blob/main/config_default.lua
+
 config.nick = nil -- autodetect
 
-config.debug = false
 config.colors = {"31", "32", "33", "34", "35", "36"}
 config.timefmt = "\x1b[38;5;8m".."%H:%M".."\x1b[0m"
 

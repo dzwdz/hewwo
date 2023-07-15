@@ -317,3 +317,47 @@ commands["list"] = function(line, args)
 	end
 	writecmd("LIST", ">1")
 end
+
+commands["config"] = function(line, args)
+	local function execf(...)
+		local cmd = string.format(...)
+		printf("$ %s", cmd)
+		return os.execute(cmd)
+	end
+
+	local path = {}
+	for p in string.gmatch(package.path, "[^;]+%?.lua") do
+		p = string.gsub(p, "?", "config")
+		table.insert(path, p)
+	end
+	local default = package.searchpath("config_default", package.path)
+
+	if args[1] == nil then
+		printf("In order of preference, I search for a config in:")
+		for k,v in ipairs(path) do
+			printf("%d. %s", k, v)
+		end
+		printf("The default config is at %s", default)
+		printf("try /config edit")
+	elseif args[1] == "edit" then
+		local dir, s = string.gsub(path[1], "/config.lua$", "")
+		if s ~= 1 then
+			print("something went wrong, sorry")
+			return
+		end
+
+		if not file_exists(path[1]) then
+			-- yeah, yeah, this isn't portable. whatever
+			if not execf([[mkdir -p "%s"]], dir) then return end
+			if not execf([[cp "%s" "%s"]], default, path[1]) then return end
+		end
+
+		if not execf([[${EDITOR:-nano} "%s"]], path[1]) then return end
+
+		-- TODO hot reload
+		print("if you expected the config to get reloaded")
+		print("have a nice disappointment. this isn't implemented yet")
+	else
+		print("usage: /config [edit]")
+	end
+end

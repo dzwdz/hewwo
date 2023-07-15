@@ -52,3 +52,14 @@ function hint(s, ...)
 		used_hints[s] = true
 	end
 end
+
+
+function file_exists(path)
+	local f = io.open(path)
+	if f then
+		f:close()
+		return true
+	else
+		return false
+	end
+end
