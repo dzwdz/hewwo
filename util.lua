@@ -29,13 +29,14 @@ function escape_char(c)
 	local b = string.byte(c)
 	if b < 0x20 or b == 0x7F then
 		-- TODO go via hi()
-		return "\x1b[35m^"..string.char(b ~ 64).."\x1b[0m"
+		return "\x1b[7m^"..string.char(b ~ 64).."\x1b[27m"
 	end
 	return c
 end
 
-function escape(s) -- escape non-utf8 chars
-	s, _ = string.gsub(s, "[\x00-\x1F\x7F]", escape_char)
+-- escape non-utf8 chars
+function escape(s)
+	s = string.gsub(s, "[\x00-\x1F\x7F]", escape_char)
 	return s
 end
 

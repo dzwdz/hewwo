@@ -317,7 +317,7 @@ function printcmd(rawline, ts, urgent_buf)
 			end
 		end
 
-		msg = escape(msg)
+		msg = ircformat(msg)
 		-- highlight own nick
 		msg = string.gsub(msg, nick_pattern(conn.user), hi(conn.user))
 
