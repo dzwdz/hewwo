@@ -361,3 +361,8 @@ commands["config"] = function(line, args)
 		print("usage: /config [edit]")
 	end
 end
+
+commands["raw"] = function(line, args)
+	args = cmd_parse(line, 1)
+	writecmdraw(args[1])
+end

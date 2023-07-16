@@ -18,12 +18,14 @@ function writecmd(...)
 		end
 		cmd = cmd .. v
 	end
+	writecmdraw(cmd)
+end
+
+function writecmdraw(cmd)
 	if config.debug then
 		print("=>", escape(cmd))
 	end
 	writesock(cmd)
-
-	local verb = string.upper(({...})[1])
 	newcmd(":"..conn.user.."!@ "..cmd, false)
 end
 
