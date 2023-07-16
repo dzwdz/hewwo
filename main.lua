@@ -269,10 +269,12 @@ function completion(line)
 		end
 	end
 
-	if word == line then
-		addfrom(buffers.tbl[conn.chan].users, "", ": ")
-	else
-		addfrom(buffers.tbl[conn.chan].users)
+	if conn.chan ~= nil then
+		if word == line then
+			addfrom(buffers.tbl[conn.chan].users, "", ": ")
+		else
+			addfrom(buffers.tbl[conn.chan].users)
+		end
 	end
 	addfrom(buffers.tbl)
 	addfrom(commands, "/")
