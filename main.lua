@@ -72,13 +72,12 @@ end
 
 
 function init()
-	if not config.nick then
-		-- hack
-		config.nick = os.getenv("USER") or "townie"
-	end
+	local default_name = os.getenv("USER") or "townie"
+	config.nick = config.nick or default_name -- a hack
 	conn.user = config.nick
 	printf(i18n.connecting, hi(conn.user))
-	writecmd("USER", conn.user, "0", "*", config.ident.real_name)
+	writecmd("USER", config.ident.username or default_name, "0", "*",
+	                 config.ident.realname or default_name)
 	writecmd("NICK", conn.user)
 	history_resize(config.history_size)
 

@@ -13,7 +13,8 @@ config.quit_msg = "oki goodnite uwu  >.<"
 config.history_size = 50
 
 -- /whois data
-config.ident.real_name = "a hewwo user"
+config.ident.username = nil -- autodetect
+config.ident.realname = nil
 
 -- command aliases
 commands["b"] = commands["buffer"]
