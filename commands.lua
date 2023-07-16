@@ -313,7 +313,7 @@ commands["list"] = function(line, args)
 		return
 	end
 	if args.pipe then
-		ext_run(args.pipe)
+		ext.run(args.pipe, "list")
 	end
 	writecmd("LIST", ">1")
 end

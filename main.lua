@@ -4,6 +4,9 @@
 
 -- requires: init, in_net, in_user, completion, ext_quit
 
+-- TODO just put the provided stuff in capi.
+--      and the required stuff in, idk, cback.
+
 require "tests"
 require "util"
 require "irc"
@@ -27,12 +30,15 @@ conn = {
 -- Basically: if an external program is launched, print() should
 --            either buffer up the input to show later, or pipe it
 --            to the program.
-local ext_running = false
-local ext_ringbuf = nil
-local _ext_pipe = false
+ext = {}
+ext.running = false
+ext.ringbuf = nil
+ext._pipe = false
+ext.reason = nil
+ext.eof = ext_eof
 function print(...)
-	if ext_running then
-		if _ext_pipe then
+	if ext.running then
+		if ext._pipe then
 			local args = {...}
 			for k,v in ipairs(args) do
 				if type(v) == "string" then
@@ -41,33 +47,37 @@ function print(...)
 			end
 			print_internal(table.unpack(args))
 		else
-			ext_ringbuf:push({...})
+			ext.ringbuf:push({...})
 		end
 	else
 		print_internal(...)
 	end
 end
 
-function ext_run(cmdline)
-	if ext_running then return end
-	ext_running = true
-	ext_ringbuf = ringbuf:new(500)
+function ext.run(cmdline, reason)
+	if ext.running then return end
+	ext.running = true
+	ext.ringbuf = ringbuf:new(500)
 	ext_run_internal(cmdline)
-	_ext_pipe = false
+	ext._pipe = false
+	ext.reason = reason
 end
 
-function ext_setpipe(b)
-	_ext_pipe = b
+-- true:  print()s should be passed to the external process
+-- false: print()s should be cached until the ext process quits
+function ext.setpipe(b)
+	ext._pipe = b
 end
 
 function ext_quit()
-	ext_running = false
+	ext.running = false
 	-- TODO notify the user if the ringbuf overflowed
 	print_internal("printing the messages you've missed...")
-	for v in ext_ringbuf:iter(ext_ringbuf) do
+	for v in ext.ringbuf:iter(ext.ringbuf) do
 		print_internal(table.unpack(v))
 	end
-	ext_ringbuf = nil
+	ext.ringbuf = nil
+	ext.reason = nil
 end
 
 
@@ -216,11 +226,9 @@ function newcmd(line, remote)
 		-- TODO list output should probably be pushed into a server buffer
 		-- but switching away from the current buffer could confuse users?
 
-		-- TODO save the command that triggered the ext process
-		-- and only setpipe if it was list
-		ext_setpipe(true)
+		if ext.reason == "list" then ext.setpipe(true) end
 		printcmd(line, os.time())
-		ext_setpipe(false)
+		if ext.reason == "list" then ext.setpipe(false) end
 	elseif cmd == ERR_NICKNAMEINUSE then
 		if conn.nick_verified then
 			printf("%s is taken, leaving your nick as %s", hi(args[3]), hi(conn.user))
@@ -358,6 +366,9 @@ function printcmd(rawline, ts, urgent_buf)
 		-- TODO it'd be nice to store the old topic
 		printf([[%s%s set %s's topic to "%s"]], out_prefix, from, to, fmt(args[3]))
 	elseif cmd == RPL_LIST then
+		if ext.reason == "list" then
+			out_prefix = "" -- don't include the hour
+		end
 		if args[5] ~= "" then
 			printf([[%s%s, %s users, %s]], out_prefix, args[3], args[4], fmt(args[5]))
 		else
@@ -365,7 +376,7 @@ function printcmd(rawline, ts, urgent_buf)
 		end
 	elseif cmd == RPL_LISTEND then
 		printf(i18n.list_after)
-		ext_eof()
+		ext.eof()
 	else
 		-- TODO config.debug levels
 		printf([[error in hewwo: printcmd can't handle "%s"]], cmd)
