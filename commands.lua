@@ -236,21 +236,17 @@ commands["who"] = function(line, args)
 	table.sort(nicks)
 
 	local s = ""
-	local slen = 0
 	printf("people in %s:", conn.chan)
-	for line, argsk in ipairs(nicks) do
-		-- TODO unicode view len
-		local len = string.len(nick) + 4
+	for line, nick in ipairs(nicks) do
+		local len = utf8.len(nick) + 4
 		local padlen = -len % 12
 		local len = len + padlen
 		nick = "[ " .. hi(nick) .. string.rep(" ", padlen) .. " ]"
 		if string.len(s) + padlen >= 80 then
 			print(s)
 			s = ""
-			slen = 0
 		end
 		s = s..nick
-		slen = slen + padlen
 	end
 	if s ~= "" then
 		print(s)
