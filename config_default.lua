@@ -16,6 +16,9 @@ config.history_size = 50
 config.ident.username = nil -- autodetect
 config.ident.realname = nil
 
+-- user friendliness
+config.display_ctcp = false
+
 -- command aliases
 commands["b"] = commands["buffer"]
 commands["j"] = commands["join"]

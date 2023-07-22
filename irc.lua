@@ -59,7 +59,7 @@ function parsecmd(line)
 	end
 
 	local cmd = string.upper(data[1])
-	if cmd == "PRIVMSG" and string.sub(data[3], 1, 1) == "\1" then
+	if (cmd == "PRIVMSG" or cmd == "NOTICE") and string.sub(data[3], 1, 1) == "\1" then
 		data.ctcp = {}
 		local inner = string.gsub(string.sub(data[3], 2), "\1$", "")
 		local split = string.find(inner, " ", 2)

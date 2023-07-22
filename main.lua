@@ -138,35 +138,40 @@ function newcmd(line, remote)
 	local cmd = string.upper(args[1])
 	local to = args[2] -- not always valid!
 
-	if not remote and cmd ~= "PRIVMSG" then
+	if not remote and not (cmd == "PRIVMSG" or cmd == "NOTICE") then
 		-- (afaik) all other messages are echoed back at us
 		return
 	end
 
-	if cmd == "PRIVMSG" then
-		if not args.ctcp or args.ctcp.cmd == "ACTION" then
-			local msg
-			if not args.ctcp then
-				msg = args[3]
-			else
-				msg = args.ctcp.params or ""
-			end
+	if cmd == "PRIVMSG" or cmd == "NOTICE" then
+		-- TODO strip first `to` character for e.g. +#tildetown
 
+		if not args.ctcp or args.ctcp.cmd == "ACTION" then
 			-- TODO factor out dm checking for consistency
 			if to == conn.user then -- direct message
 				buffers:push(from, line, 1)
 			else
+				local msg
+				if not args.ctcp then
+					msg = args[3]
+				else
+					msg = args.ctcp.params or ""
+				end
+
 				local urgency = 0
 				if string.match(msg, nick_pattern(conn.user)) or from == conn.user then
 					urgency = 1
 				end
 				buffers:push(to, line, urgency)
 			end
-		-- TODO display CTCP queries and responses!
-		elseif args.ctcp.cmd == "VERSION" then
-			writecmd("NOTICE", from, "\1VERSION hewwo\1")
-		elseif args.ctcp.cmd == "PING" then
-			writecmd("NOTICE", from, args[3])
+		end
+
+		if cmd == "PRIVMSG" and args.ctcp and remote then
+			if args.ctcp.cmd == "VERSION" then
+				writecmd("NOTICE", from, "\1VERSION hewwo\1")
+			elseif args.ctcp.cmd == "PING" then
+				writecmd("NOTICE", from, args[3])
+			end
 		end
 	elseif cmd == "JOIN" then
 		buffers:push(to, line)
@@ -307,22 +312,21 @@ function printcmd(rawline, ts, urgent_buf)
 	local to = args[2] -- not always valid!
 	local fmt = ircformat
 
-	if cmd == "PRIVMSG" then
-		local msg = args[3]
+	if cmd == "PRIVMSG" or cmd == "NOTICE" then
 		local action = false
 		local private = false
+		local notice = cmd == "NOTICE"
+
+		local userpart = ""
+		local msg = args[3]
 
 		-- TODO strip unprintable
 		if string.sub(to, 1, 1) ~= "#" then
 			private = true
 		end
-		if args.ctcp then
-			if args.ctcp.cmd == "ACTION" then
-				action = true
-				msg = args.ctcp.params
-			else
-				return
-			end
+		if args.ctcp and args.ctcp.cmd == "ACTION" then
+			action = true
+			msg = args.ctcp.params
 		end
 
 		msg = fmt(msg)
@@ -330,20 +334,27 @@ function printcmd(rawline, ts, urgent_buf)
 		msg = string.gsub(msg, nick_pattern(conn.user), hi(conn.user))
 
 		if private then
-			if action then
-				msg = string.format("* %s %s", hi(from), msg)
-			end
-			msg = string.format("[%s -> %s] %s", hi(from), hi(to), msg)
-			-- printing the buffer is redundant
-			printf("%s %s", timefmt, msg)
-		else
-			if action then
-				msg = string.format("* %s %s", hi(from), msg)
+			-- the original prefix might also include the buffer,
+			-- which is redundant
+			prefix = timefmt
+
+			if notice then
+				userpart = string.format("-%s:%s-", hi(from), hi(to))
+			elseif action then
+				userpart = string.format("[%s -> %s] * %s", hi(from), hi(to), hi(from))
 			else
-				msg = string.format("<%s> %s", hi(from), msg)
+				userpart = string.format("[%s -> %s]", hi(from), hi(to))
 			end
-			printf("%s%s", prefix, msg)
+		else
+			if notice then
+				userpart = string.format("-%s:%s-", hi(from), to)
+			elseif action then
+				userpart = string.format("* %s", hi(from))
+			else
+				userpart = string.format("<%s>", hi(from))
+			end
 		end
+		print(prefix .. userpart .. " " .. msg)
 
 		if private and from ~= conn.user then
 			hint(i18n.query_hint, from)
