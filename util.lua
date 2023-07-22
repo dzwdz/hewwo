@@ -11,6 +11,8 @@ function djb2(s)
 end
 
 function hi(s) -- highlight
+	if not s then return "" end
+
 	-- TODO highlighting commands in help prompts?
 	local cid = djb2(s) % #config.colors
 	local color = config.colors[cid+1]

@@ -145,6 +145,7 @@ function newcmd(line, remote)
 
 	if cmd == "PRIVMSG" or cmd == "NOTICE" then
 		-- TODO strip first `to` character for e.g. +#tildetown
+		if to == "*" then return end
 
 		if not args.ctcp or args.ctcp.cmd == "ACTION" then
 			-- TODO factor out dm checking for consistency
@@ -320,7 +321,6 @@ function printcmd(rawline, ts, urgent_buf)
 		local userpart = ""
 		local msg = args[3]
 
-		-- TODO strip unprintable
 		if string.sub(to, 1, 1) ~= "#" then
 			private = true
 		end
@@ -356,7 +356,7 @@ function printcmd(rawline, ts, urgent_buf)
 		end
 		print(prefix .. userpart .. " " .. msg)
 
-		if private and from ~= conn.user then
+		if private and not notice and from ~= conn.user then
 			hint(i18n.query_hint, from)
 		end
 	elseif cmd == "JOIN" then
