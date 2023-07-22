@@ -134,7 +134,6 @@ end
 -- Called for new commands, both from the server and from the client.
 function newcmd(line, remote)
 	local args = parsecmd(line)
-	local prefix = args.prefix
 	local from = args.user
 	local cmd = string.upper(args[1])
 	local to = args[2] -- not always valid!
@@ -297,13 +296,12 @@ end
 -- Prints an IRC command.
 function printcmd(rawline, ts, urgent_buf)
 	local timefmt = os.date(config.timefmt, ts)
-	local out_prefix = timefmt
+	local prefix = timefmt
 	if urgent_buf then
-		out_prefix = string.format("%s%s: ", out_prefix, urgent_buf)
+		prefix = string.format("%s%s: ", prefix, urgent_buf)
 	end
 
 	local args = parsecmd(rawline)
-	local prefix = args.prefix
 	local from = args.user
 	local cmd = string.upper(args[1])
 	local to = args[2] -- not always valid!
@@ -344,35 +342,35 @@ function printcmd(rawline, ts, urgent_buf)
 			else
 				msg = string.format("<%s> %s", hi(from), msg)
 			end
-			printf("%s%s", out_prefix, msg)
+			printf("%s%s", prefix, msg)
 		end
 
 		if private and from ~= conn.user then
 			hint(i18n.query_hint, from)
 		end
 	elseif cmd == "JOIN" then
-		printf("%s--> %s has joined %s", out_prefix, hi(from), to)
+		printf("%s--> %s has joined %s", prefix, hi(from), to)
 	elseif cmd == "PART" then
-		printf("%s<-- %s has left %s", out_prefix, hi(from), to)
+		printf("%s<-- %s has left %s", prefix, hi(from), to)
 	elseif cmd == "INVITE" then
-		printf("%s%s has invited you to %s", out_prefix, hi(from), args[3])
+		printf("%s%s has invited you to %s", prefix, hi(from), args[3])
 	elseif cmd == "QUIT" then
-		printf("%s<-- %s has quit (%s)", out_prefix, hi(from), fmt(args[2]))
+		printf("%s<-- %s has quit (%s)", prefix, hi(from), fmt(args[2]))
 	elseif cmd == "NICK" then
-		printf("%s%s is now known as %s", out_prefix, hi(from), hi(to))
+		printf("%s%s is now known as %s", prefix, hi(from), hi(to))
 	elseif cmd == RPL_TOPIC then
-		printf([[%s-- %s's topic is "%s"]], out_prefix, args[3], fmt(args[4]))
+		printf([[%s-- %s's topic is "%s"]], prefix, args[3], fmt(args[4]))
 	elseif cmd == "TOPIC" then
 		-- TODO it'd be nice to store the old topic
-		printf([[%s%s set %s's topic to "%s"]], out_prefix, from, to, fmt(args[3]))
+		printf([[%s%s set %s's topic to "%s"]], prefix, from, to, fmt(args[3]))
 	elseif cmd == RPL_LIST then
 		if ext.reason == "list" then
-			out_prefix = "" -- don't include the hour
+			prefix = "" -- don't include the hour
 		end
 		if args[5] ~= "" then
-			printf([[%s%s, %s users, %s]], out_prefix, args[3], args[4], fmt(args[5]))
+			printf([[%s%s, %s users, %s]], prefix, args[3], args[4], fmt(args[5]))
 		else
-			printf([[%s%s, %s users]], out_prefix, args[3], args[4])
+			printf([[%s%s, %s users]], prefix, args[3], args[4])
 		end
 	elseif cmd == RPL_LISTEND then
 		printf(i18n.list_after)
