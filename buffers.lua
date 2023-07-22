@@ -79,6 +79,14 @@ function buffers:count_unread()
 	return unread, mentions
 end
 
+function buffers:leave(buf, who)
+	if who == conn.user then
+		buffers.tbl[buf].connected = false
+		buffers.tbl[buf].users = {}
+	end
+	buffers.tbl[buf].users[who] = nil
+end
+
 
 ringbuf = {
 	cap = 0,

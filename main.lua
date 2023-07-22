@@ -182,11 +182,10 @@ function newcmd(line, remote)
 		buffers.tbl[to].users[from] = true
 	elseif cmd == "PART" then
 		buffers:push(to, line)
-		if from == conn.user then
-			buffers.tbl[to].connected = false
-			buffers.tbl[to].users = {}
-		end
-		buffers.tbl[to].users[from] = nil
+		buffers:leave(to, from)
+	elseif cmd == "KICK" then
+		buffers:push(to, line)
+		buffers:leave(to, args[3])
 	elseif cmd == "INVITE" then
 		buffers:push(from, line, 1)
 	elseif cmd == "QUIT" then
@@ -363,6 +362,8 @@ function printcmd(rawline, ts, urgent_buf)
 		printf("%s--> %s has joined %s", prefix, hi(from), to)
 	elseif cmd == "PART" then
 		printf("%s<-- %s has left %s", prefix, hi(from), to)
+	elseif cmd == "KICK" then
+		printf("%s-- %s kicked %s from %s (%s)", prefix, hi(from), hi(args[3]), args[2], args[4] or "")
 	elseif cmd == "INVITE" then
 		printf("%s%s has invited you to %s", prefix, hi(from), args[3])
 	elseif cmd == "QUIT" then
