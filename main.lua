@@ -92,6 +92,16 @@ function init()
 	history_resize(config.history_size)
 
 	conn.chan = nil
+
+	buffers:make(":mentions")
+	buffers.tbl[":mentions"].printcmd = function (self, ent)
+		printcmd(ent.line, ent.ts, ent.buf)
+	end
+	buffers.tbl[":mentions"].onswitch = function (self)
+		for k,v in pairs(buffers.tbl) do
+			v.mentions = 0
+		end
+	end
 end
 
 function in_net(line)
@@ -150,7 +160,7 @@ function newcmd(line, remote)
 		if not args.ctcp or args.ctcp.cmd == "ACTION" then
 			-- TODO factor out dm checking for consistency
 			if to == conn.user then -- direct message
-				buffers:push(from, line, 1)
+				buffers:push(from, line, {urgency=1})
 			else
 				local msg
 				if not args.ctcp then
@@ -159,11 +169,13 @@ function newcmd(line, remote)
 					msg = args.ctcp.params or ""
 				end
 
-				local urgency = 0
-				if string.match(msg, nick_pattern(conn.user)) or from == conn.user then
-					urgency = 1
+				if string.match(msg, nick_pattern(conn.user)) then
+					buffers:push(to, line, {urgency=2})
+				elseif from == conn.user then
+					buffers:push(to, line, {urgency=1})
+				else
+					buffers:push(to, line)
 				end
-				buffers:push(to, line, urgency)
 			end
 		end
 
@@ -175,43 +187,43 @@ function newcmd(line, remote)
 			end
 		end
 	elseif cmd == "JOIN" then
-		buffers:push(to, line)
+		buffers:push(to, line, {urgency=-1})
 		if from == conn.user then
 			buffers.tbl[to].connected = true
 		end
 		buffers.tbl[to].users[from] = true
 	elseif cmd == "PART" then
-		buffers:push(to, line)
+		buffers:push(to, line, {urgency=-1})
 		buffers:leave(to, from)
 	elseif cmd == "KICK" then
 		buffers:push(to, line)
 		buffers:leave(to, args[3])
 	elseif cmd == "INVITE" then
-		buffers:push(from, line, 1)
+		buffers:push(from, line, {urgency=2})
 	elseif cmd == "QUIT" then
-		local urgency = 0
+		local display = 0
 		if from == conn.user then
 			-- print manually
-			urgency = -1
+			display = -1
 			printcmd(line, os.time())
 		end
 		for chan,buf in pairs(buffers.tbl) do
 			if buf.users[from] then
-				buffers:push(chan, line, urgency)
+				buffers:push(chan, line, {display=display, urgency=-1})
 				buf.users[from] = nil
 			end
 		end
 	elseif cmd == "NICK" then
-		local urgency = 0
+		local display = 0
 		if from == conn.user then
 			conn.user = to
 			-- print manually
-			urgency = -1
+			display = -1
 			printcmd(line, os.time())
 		end
 		for chan,buf in pairs(buffers.tbl) do
 			if buf.users[from] then
-				buffers:push(chan, line, urgency)
+				buffers:push(chan, line, {display=display, urgency=-1})
 				buf.users[from] = nil
 				buf.users[to] = true
 			end
@@ -223,9 +235,9 @@ function newcmd(line, remote)
 	elseif cmd == RPL_TOPIC then
 		buffers:push(args[3], line)
 	elseif cmd == "TOPIC" then
-		local urgency = 0
-		if from == conn.user then urgency = 1 end
-		buffers:push(to, line, urgency)
+		local display = 0
+		if from == conn.user then display = 1 end
+		buffers:push(to, line, {display=display})
 	elseif cmd == RPL_LIST or cmd == RPL_LISTEND then
 		-- TODO list output should probably be pushed into a server buffer
 		-- but switching away from the current buffer could confuse users?

@@ -8,13 +8,21 @@ function buffers:switch(chan)
 		hint(i18n.buffer_hint, chan, conn.chan)
 	end
 	conn.chan = chan
-	if self.tbl[chan] then
-		-- TODO remember last seen message to prevent spam?
-		for ent in self.tbl[chan]:iter() do
-			printcmd(ent.line, ent.ts)
+	local buf = self.tbl[chan]
+	if buf then
+		-- TODO remember last seen message so as not to flood the terminal?
+		for ent in buf:iter() do
+			if buf.printcmd then
+				-- TODO this is the only place where buf:printcmd is respected
+				-- currently this is fine, but broadly it isn't
+				buf:printcmd(ent)
+			else
+				printcmd(ent.line, ent.ts)
+			end
 		end
-		self.tbl[chan].unread = 0
-		self.tbl[chan].mentions = 0
+		buf.unread = 0
+		buf.mentions = 0
+		if buf.onswitch then buf:onswitch() end
 	else
 		-- TODO error out
 		print("-- (creating buffer)")
@@ -26,26 +34,54 @@ end
 -- urgency == 0  ->  printed iff the buffer is visible
 -- urgency >  0  ->  always printed, potentially with an urgency prefix
 -- urgency <  0  ->  not printed
-function buffers:push(buf, line, urgency)
-	urgency = urgency or 0
 
-	local ts = os.time()
+--[[
+Pushes a fresh IRC command to a buffer.
+ent.display:
+	-1 never display
+	 0 display if appropriate
+	 1 force display
+
+ent.urgency:
+	-1 don't bump unread
+	 0 bump unread
+	 1 bump mentions
+	 2 push to :mentions
+]]
+function buffers:push(buf, line, ent)
+	ent = ent or {}
+	local urgency = ent.urgency or 0
+	local display = ent.display
+	if not display then
+		if urgency >= 1 then
+			display = 1
+		else
+			display = 0
+		end
+	end
+	ent.line = line
+	ent.ts = os.time()
+
 	self:make(buf)
 	local b = self.tbl[buf]
-	b:push({line=line, ts=ts})
+	b:push(ent)
 	if buf ~= conn.chan then
-		self.tbl[buf].unread = self.tbl[buf].unread + 1
-		if urgency > 0 then
-			-- TODO store original nickname for mention purposes
-			-- otherwise /nick will break shit
+		if urgency >= 0 then
+			self.tbl[buf].unread = self.tbl[buf].unread + 1
+		end
+		if urgency >= 1 and not buffers:is_visible(":mentions") then
 			self.tbl[buf].mentions = self.tbl[buf].mentions + 1
 		end
 	end
+	if urgency >= 2 then
+		ent.buf = buf
+		self.tbl[":mentions"]:push(ent)
+	end
 
-	if urgency >= 0 and buffers:is_visible(buf) then
-		printcmd(line, ts)
-	elseif urgency > 0 then
-		printcmd(line, ts, buf)
+	if display >= 0 and buffers:is_visible(buf) then
+		printcmd(ent.line, ent.ts)
+	elseif display > 0 then
+		printcmd(ent.line, ent.ts, buf)
 	end
 end
 
