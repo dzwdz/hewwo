@@ -286,7 +286,6 @@ function completion(line)
 		if not src then return end
 		prefix = prefix or ""
 		suffix = suffix or " "
-		local word = string.sub(word, string.len(prefix) + 1)
 		local wlen = string.len(word)
 		for k, v in pairs(src) do
 			k = prefix..k..suffix
