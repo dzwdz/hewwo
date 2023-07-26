@@ -111,6 +111,10 @@ function ircformat(s)
 	end
 
 	local function color(fg, bg)
+		if not config.color.in_messages then
+			return ""
+		end
+
 		local function get_fg(fg)
 			if not fg then return "" end
 			fg = tonumber(fg)

@@ -12,10 +12,12 @@ end
 
 function hi(s) -- highlight
 	if not s then return "" end
+	local colors = config.color.nicks
+	if not colors or #colors == 0 then return s end
 
 	-- TODO highlighting commands in help prompts?
-	local cid = djb2(s) % #config.colors
-	local color = config.colors[cid+1]
+	local cid = djb2(s) % #colors
+	local color = colors[cid+1]
 	return "\x1b["..color.."m"..s.."\x1b[0m"
 end
 
@@ -30,7 +32,6 @@ end
 function escape_char(c)
 	local b = string.byte(c)
 	if b < 0x20 or b == 0x7F then
-		-- TODO go via hi()
 		return "\x1b[7m^"..string.char(b ~ 64).."\x1b[27m"
 	end
 	return c

@@ -316,17 +316,22 @@ end
 
 -- Prints an IRC command.
 function printcmd(rawline, ts, urgent_buf)
-	local timefmt = os.date(config.timefmt, ts)
-	local prefix = timefmt
-	if urgent_buf then
-		prefix = string.format("%s%s: ", prefix, urgent_buf)
-	end
-
 	local args = parsecmd(rawline)
 	local from = args.user
 	local cmd = string.upper(args[1])
 	local to = args[2] -- not always valid!
 	local fmt = ircformat
+
+	local clock = os.date(config.timefmt, ts)
+	if config.color.clock then
+		-- wrap the clock in ANSI color codes iff the user specified a color
+		clock = string.format("\x1b[%sm%s\x1b[0m", config.color.clock, clock)
+	end
+
+	local prefix = clock
+	if urgent_buf then
+		prefix = string.format("%s%s: ", prefix, urgent_buf)
+	end
 
 	if cmd == "PRIVMSG" or cmd == "NOTICE" then
 		local action = false
@@ -351,7 +356,7 @@ function printcmd(rawline, ts, urgent_buf)
 		if private then
 			-- the original prefix might also include the buffer,
 			-- which is redundant
-			prefix = timefmt
+			prefix = clock
 
 			if notice then
 				userpart = string.format("-%s:%s-", hi(from), hi(to))
@@ -411,5 +416,6 @@ end
 
 config = {}
 config.ident = {}
+config.color = {}
 require "config_default"
 require "config" -- last so as to let it override stuff
