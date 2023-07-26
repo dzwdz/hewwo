@@ -134,9 +134,13 @@ function in_user(line)
 			end
 		end
 	elseif conn.chan then
-		writecmd("PRIVMSG", conn.chan, line)
+		if string.sub(conn.chan, 1, 1) == ":" then
+			printf(i18n.err_rochan, conn.chan)
+		else
+			writecmd("PRIVMSG", conn.chan, line)
+		end
 	else
-		print("you need to enter a channel to chat. try \"/join #tildetown\"")
+		print(i18n.err_nochan)
 	end
 	updateprompt()
 end

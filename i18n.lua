@@ -19,7 +19,8 @@ i18n.help = {}
 i18n.help.main = [[
 /help cmd      will list all the available commands
 /help manual   will show the manual
-/help unread   will explain the [0!0] thing in your prompt]]
+/help unread   will explain the [0!0] thing in your prompt
+/help buffers  will explain what buffers are]]
 
 -- TODO help_manual
 i18n.help.manual = [[
@@ -38,7 +39,15 @@ i18n.connecting = [[
 logging you in as %s. if you don't like that, try /nick]]
 
 i18n.connected = [[
-ok, i'm connected! try "/join #newbirc" or "/help"]]
+ok, i'm connected! try "/join #tildetown" or "/help"]]
+
+i18n.err_rochan = [[
+"%s" is a special read-only buffer.
+try "/join #tildetown", or "/help buffers"
+]]
+
+i18n.err_nochan = [[
+you need to enter a channel to chat. try "/join #tildetown"]]
 
 i18n.quit_failsafe = [[
 if you are sure you want to close the client, type "/QUIT" (all caps)]]
