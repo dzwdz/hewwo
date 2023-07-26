@@ -296,11 +296,12 @@ function completion(line)
 		end
 	end
 
-	if conn.chan ~= nil then
+	local buf = buffers.tbl[conn.chan]
+	if buf then
 		if word == line then
-			addfrom(buffers.tbl[conn.chan].users, "", ": ")
+			addfrom(buf.users, "", ": ")
 		else
-			addfrom(buffers.tbl[conn.chan].users)
+			addfrom(buf.users)
 		end
 	end
 	addfrom(buffers.tbl)
