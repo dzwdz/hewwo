@@ -334,7 +334,7 @@ commands["config"] = function(line, args)
 			printf("%d. %s", k, v)
 		end
 		printf("The default config is at %s", default)
-		printf("try /config edit")
+		printf("Also, try \"/config edit\".\n")
 	elseif args[1] == "edit" then
 		local dir, s = string.gsub(path[1], "/config.lua$", "")
 		if s ~= 1 then

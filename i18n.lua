@@ -18,20 +18,31 @@ hint: The active buffer switched to %s, so you'll only see messages from there.
 i18n.help = {}
 i18n.help.main = [[
 /help cmd      will list all the available commands
-/help manual   will show the manual
-/help unread   will explain the [0!0] thing in your prompt
+/help prompt   will explain the [0!0] thing in your prompt
 /help buffers  will explain what buffers are]]
 
--- TODO help_manual
-i18n.help.manual = [[
-nobody bothered to write this help string yet. blame dzwdz]]
+i18n.help.prompt = [[
+Let's assume your prompt is [4!2 #tildetown]:
+* The 1st number, 4, is the amount of unread buffers
+* The 2nd number, 2, is the amount of buffers with unread mentions
+* "#tildetown" is the buffer you're currently in
 
--- TODO help_unread
-i18n.help.unread = [[
-nobody bothered to write this help string yet. blame dzwdz]]
+If you're wondering what an buffer even is, "/help buffers"]]
+
+i18n.help.buffers = [[
+A buffer is a thing with messages. There's three kinds of them:
+1. channel buffers        - e.g. "#tildetown"
+2. direct message buffers - e.g. "dzwdz"
+3. special buffers        - e.g. ":mentions"
+
+You can only view one buffer at a time, but you can switch between them at
+any time using "/buffer" (or "/b" for short). That will also print all the
+messages in that buffer, so you're up to date on what was happening there.
+
+You can also list all buffers with "/buffers" or "/ls".]]
 
 i18n.help._unknown = [[
-i'm not sure what "%s" is.
+I'm not sure what "%s" is.
 "/help" with no arguments will list everything that i do know, though]]
 
 
@@ -64,8 +75,10 @@ if you can't, you can either:
 ]]
 
 
+set_cmd_help("action", [[Send a roleplay message, e.g. "/me jumps into hyperspace".]])
+set_cmd_help("buffers", [[List all the open buffers (including channels you left).]])
+set_cmd_help("config", [[Customize hewwo.]])
+set_cmd_help("nick", [[Set your own nick (shared across all channels).]])
 set_cmd_help("query", [[Send a private message to someone.]])
 set_cmd_help("quit", [[Leave all channels and close hewwo.]])
 set_cmd_help("who", [[See who's in the current channel.]])
-set_cmd_help("buffers", [[List all the open buffers (including channels you left).]])
-set_cmd_help("action", [[Send a roleplay message, e.g. "/me jumps into hyperspace".]])
