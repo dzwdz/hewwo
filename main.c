@@ -28,7 +28,6 @@ struct {
 	char *ext_cmd;
 	pid_t ext_pid;
 	FILE *ext_pipe;
-	bool sigchld;
 } G;
 
 static void
@@ -68,10 +67,9 @@ in_user(char *line)
 }
 
 static void
-sigchld(int signo)
+sighandler(int signo)
 {
 	(void)signo;
-	G.sigchld = true;
 }
 
 static void
@@ -110,8 +108,16 @@ ext_run(void)
 void
 mainloop(const char *host, const char *port)
 {
+	// TODO merge into main()
 	static char lsbuf[512];
 	Bufio *bi;
+	sigset_t emptyset, blockset;
+
+	/* only handle SIGCHLD during pselect() */
+	sigemptyset(&emptyset);
+	sigemptyset(&blockset);
+	sigaddset(&blockset, SIGCHLD);
+	sigprocmask(SIG_BLOCK, &blockset, NULL);
 
 	G.fd = dial(host, port);
 	if (G.fd < 0) {
@@ -136,28 +142,25 @@ mainloop(const char *host, const char *port)
 		FD_SET(G.fd, &rfds);
 
 		errno = 0;
-		if (!G.sigchld) {
-			ret = select(G.fd+1, &rfds, NULL, NULL, NULL);
-			if (ret >= 0) {
-				if (FD_ISSET(0, &rfds)) {
-					char *line = linenoiseEditFeed(&G.ls);
-					if (line == linenoiseEditMore) continue;
-					linenoiseHide(&G.ls);
-					in_user(line);
-					linenoiseFree(line);
-					linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, G.prompt);
-				}
-				if (FD_ISSET(G.fd, &rfds)) {
-					bufio_read(bi, G.fd, in_net);
-				}
-			} else if (ret == -1 && errno != EINTR) {
-				linenoiseEditStop(&G.ls);
-				perror("select()");
-				exit(1);
+		ret = pselect(G.fd+1, &rfds, NULL, NULL, NULL, &emptyset);
+		if (ret >= 0) {
+			if (FD_ISSET(0, &rfds)) {
+				char *line = linenoiseEditFeed(&G.ls);
+				if (line == linenoiseEditMore) continue;
+				linenoiseHide(&G.ls);
+				in_user(line);
+				linenoiseFree(line);
+				linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, G.prompt);
 			}
-		} else {
-			G.sigchld = false;
+			if (FD_ISSET(G.fd, &rfds)) {
+				bufio_read(bi, G.fd, in_net);
+			}
+		} else if (errno != EINTR) {
+			linenoiseEditStop(&G.ls);
+			perror("select()");
+			exit(1);
 		}
+
 		if (G.ext_pid && waitpid(G.ext_pid, NULL, WNOHANG) == G.ext_pid) {
 			G.ext_pid = false;
 			if (G.ext_pipe) {
@@ -327,7 +330,7 @@ main(int argc, char **argv)
 
 	{
 		struct sigaction sa = {0};
-		sa.sa_handler = sigchld;
+		sa.sa_handler = sighandler;
 		if (sigaction(SIGCHLD, &sa, NULL) == -1) {
 			perror("sigaction()");
 			exit(1);
