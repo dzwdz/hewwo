@@ -104,6 +104,12 @@ function init()
 	end
 end
 
+function disconnected()
+	-- TODO do something reasonable
+	print([[you got disconnected from the server :/]])
+	print([[restart hewwo with "/QUIT" to reconnect]])
+end
+
 function in_net(line)
 	if config.debug then
 		print("<=", escape(line))

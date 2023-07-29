@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/param.h>
 #include <sys/select.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -139,10 +140,14 @@ mainloop(const char *host, const char *port)
 		if (G.ext_pid == 0) {
 			FD_SET(0, &rfds);
 		}
-		FD_SET(G.fd, &rfds);
+		if (G.fd != -1) {
+			FD_SET(G.fd, &rfds);
+		}
+		/* If fd_set is empty, pselect still waits for a signal, as expected.
+		 * well, at least on Linux it does. I think that's portable, though. */
 
 		errno = 0;
-		ret = pselect(G.fd+1, &rfds, NULL, NULL, NULL, &emptyset);
+		ret = pselect(MAX(1, G.fd+1), &rfds, NULL, NULL, NULL, &emptyset);
 		if (ret >= 0) {
 			if (FD_ISSET(0, &rfds)) {
 				char *line = linenoiseEditFeed(&G.ls);
@@ -152,8 +157,12 @@ mainloop(const char *host, const char *port)
 				linenoiseFree(line);
 				linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, G.prompt);
 			}
-			if (FD_ISSET(G.fd, &rfds)) {
-				bufio_read(bi, G.fd, in_net);
+			if (G.fd != -1 && FD_ISSET(G.fd, &rfds)) {
+				if (bufio_read(bi, G.fd, in_net) == 0) {
+					close(G.fd);
+					G.fd = -1;
+					l_callfn("disconnected", NULL);
+				}
 			}
 		} else if (errno != EINTR) {
 			linenoiseEditStop(&G.ls);
@@ -276,7 +285,9 @@ l_writesock(lua_State *L)
 {
 	/* automatically inserts the \r\n */
 	const char *s = luaL_checkstring(L, 1);
-	dprintf(G.fd, "%s\r\n", s);
+	if (G.fd != -1) {
+		dprintf(G.fd, "%s\r\n", s);
+	}
 	return 0;
 }
 

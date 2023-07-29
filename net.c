@@ -58,7 +58,7 @@ bufio_read(Bufio *bi, int fd, void (*callback)(char *s))
 	}
 
 	int ret = read(fd, bi->buf + bi->pos, toread);
-	if (ret < 0) return ret;
+	if (ret <= 0) return ret;
 	bi->pos += ret;
 
 	for (;;) {
