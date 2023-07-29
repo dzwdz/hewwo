@@ -20,6 +20,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+static void cback_arr(char *name, int nresults, int nargs, const char *args[]);
 static void cback(char *name, int nresults, const char *arg);
 
 static void in_net(char *s);
@@ -63,7 +64,7 @@ static const luaL_Reg capi_reg[] = {
 
 
 static void
-cback(char *name, int nresults, const char *arg)
+cback_arr(char *name, int nresults, int nargs, const char *args[])
 {
 	int base = lua_gettop(G.L);
 	lua_getglobal(G.L, "debug");
@@ -80,18 +81,16 @@ cback(char *name, int nresults, const char *arg)
 	}
 	lua_remove(G.L, -2); /* remove cback. from the stack */
 
-	if (arg) {
-		lua_pushstring(G.L, arg);
-	} else {
-		lua_pushnil(G.L);
+	for (int i = 0; i < nargs; i++) {
+		lua_pushstring(G.L, args[i]);
 	}
 	/* stack:
 	 * [base+1] = debug.traceback
 	 * [base+2] = function to call
-	 * [base+3] = argument
+	 * +nargs
 	 */
-	assert(lua_gettop(G.L) == base + 3);
-	if (lua_pcall(G.L, 1, nresults, base+1) != LUA_OK) {
+	assert(lua_gettop(G.L) == base + 2 + nargs);
+	if (lua_pcall(G.L, nargs, nresults, base+1) != LUA_OK) {
 		linenoiseEditStop(&G.ls);
 		// TODO shouldn't always be fatal
 		printf("I've hit a Lua error :(\n%s\n", lua_tostring(G.L, -1));
@@ -102,6 +101,16 @@ cback(char *name, int nresults, const char *arg)
 	 * +nresults */
 	assert(lua_gettop(G.L) == base + 1 + nresults);
 	lua_remove(G.L, base+1);
+}
+
+static void
+cback(char *name, int nresults, const char *arg)
+{
+	if (arg) {
+		cback_arr(name, nresults, 1, &arg);
+	} else {
+		cback_arr(name, nresults, 0, NULL);
+	}
 }
 
 static void
@@ -340,13 +349,11 @@ main(int argc, char **argv)
 	G.prompt = strdup(": ");
 	G.fd = -1;
 
-	// TODO readd argv parsing
-
 	if (luaL_dostring(G.L, "require \"main\"")) {
 		printf("I've hit a Lua error :(\n%s\n", lua_tostring(G.L, -1));
 		exit(1);
 	}
-	cback("init", 0, NULL);
+	cback_arr("init", 0, argc, (const char**)argv);
 
 	linenoiseSetCompletionCallback(completion);
 	linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, G.prompt);

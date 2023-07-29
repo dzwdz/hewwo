@@ -76,9 +76,10 @@ function cback.ext_quit()
 end
 
 
-function cback.init()
-	local host = "10.69.0.1"
-	local port = "8000"
+function cback.init(...)
+	local argv = {...}
+	local host = argv[2] or "localhost"
+	local port = argv[3] or "6667"
 	if not capi.dial(host, port) then
 		printf("couldn't connect to %s:%s :(", host, port)
 		os.exit(1)
