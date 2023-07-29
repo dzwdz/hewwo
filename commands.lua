@@ -74,6 +74,7 @@ commands["join"] = function(line, args)
 	local last = args[#args]
 	buffers:switch(last)
 end
+-- ["j"] set in default config
 
 commands["part"] = function(line, args)
 	if #args == 0 then
@@ -108,15 +109,6 @@ commands["msg"] = function(line, args)
 end
 commands["q"] = commands["msg"]
 commands["query"] = commands["msg"]
-
-commands["buffer"] = function(line, args)
-	if #args ~= 1 then
-		printf("/%s takes in exactly one argument - a channel/username", args[0])
-		return
-	end
-	buffers:switch(args[1])
-end
-commands["buf"] = commands["buffer"]
 
 commands["action"] = function(line, args)
 	if not conn.chan then
@@ -254,9 +246,9 @@ commands["who"] = function(line, args)
 end
 commands["nicks"] = commands["who"]
 
-commands["warp"] = function(line, args)
+commands["buffer"] = function(line, args)
 	if #args ~= 1 then
-		printf("/warp takes exactly one argument")
+		printf("/buffer takes exactly one argument")
 		return
 	end
 
@@ -284,7 +276,8 @@ commands["warp"] = function(line, args)
 		end
 	end
 end
-commands["w"] = commands["warp"]
+commands["buf"] = commands["buffer"]
+-- ["b"] set in default config
 
 commands["topic"] = function(line, args)
 	if #args == 0 then
