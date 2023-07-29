@@ -35,6 +35,7 @@ static int l_history_add(lua_State *L);
 static int l_history_resize(lua_State *L);
 static int l_ext_run(lua_State *L);
 static int l_ext_eof(lua_State *L);
+static int l_dial(lua_State *L);
 
 static struct {
 	struct linenoiseState ls;
@@ -56,6 +57,7 @@ static const luaL_Reg capi_reg[] = {
 	{"history_resize", l_history_resize},
 	{"ext_run_internal", l_ext_run},
 	{"ext_eof", l_ext_eof},
+	{"dial", l_dial},
 	{NULL, NULL}
 };
 
@@ -278,6 +280,20 @@ l_ext_eof(lua_State *L)
 	return 0;
 }
 
+static int
+l_dial(lua_State *L)
+{
+	const char *host = luaL_checkstring(L, 1);
+	const char *port = luaL_checkstring(L, 2);
+	if (G.fd != -1) {
+		close(G.fd);
+		G.fd = -1;
+	}
+	G.fd = dial(host, port);
+	lua_pushboolean(L, G.fd >= 0);
+	return 1;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -322,21 +338,14 @@ main(int argc, char **argv)
 	}
 
 	G.prompt = strdup(": ");
+	G.fd = -1;
+
+	// TODO readd argv parsing
 
 	if (luaL_dostring(G.L, "require \"main\"")) {
 		printf("I've hit a Lua error :(\n%s\n", lua_tostring(G.L, -1));
 		exit(1);
 	}
-
-	printf("hi! i'm an irc client. please give me a second to connect...\n");
-
-	// TODO readd argv parsing
-	G.fd = dial("10.69.0.1", "8000");
-	if (G.fd < 0) {
-		fprintf(stderr, "couldn't connect to the server at %s:%s :(\n", "TODO", "TODO");
-		exit(1);
-	}
-
 	cback("init", 0, NULL);
 
 	linenoiseSetCompletionCallback(completion);

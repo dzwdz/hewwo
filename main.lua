@@ -77,6 +77,13 @@ end
 
 
 function cback.init()
+	local host = "10.69.0.1"
+	local port = "8000"
+	if not capi.dial(host, port) then
+		printf("couldn't connect to %s:%s :(", host, port)
+		os.exit(1)
+	end
+
 	local default_name = os.getenv("USER") or "townie"
 	config.nick = config.nick or default_name -- a hack
 	conn.user = config.nick
