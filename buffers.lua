@@ -5,7 +5,7 @@ buffers = {
 function buffers:switch(chan)
 	printf("--- switching to %s", chan)
 	if conn.chan then
-		hint(i18n.buffer_hint, chan, conn.chan)
+		ui.hint(i18n.buffer_hint, chan, conn.chan)
 	end
 	conn.chan = chan
 	local buf = self.tbl[chan]
@@ -17,7 +17,7 @@ function buffers:switch(chan)
 				-- currently this is fine, but broadly it isn't
 				buf:printcmd(ent)
 			else
-				printcmd(ent.line, ent.ts)
+				ui.printcmd(ent.line, ent.ts)
 			end
 		end
 		buf.unread = 0
@@ -79,9 +79,9 @@ function buffers:push(buf, line, ent)
 	end
 
 	if display >= 0 and buffers:is_visible(buf) then
-		printcmd(ent.line, ent.ts)
+		ui.printcmd(ent.line, ent.ts)
 	elseif display > 0 then
-		printcmd(ent.line, ent.ts, buf)
+		ui.printcmd(ent.line, ent.ts, buf)
 	end
 end
 

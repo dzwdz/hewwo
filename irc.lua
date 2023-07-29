@@ -6,7 +6,9 @@ RPL_ENDOFMOTD = "376"
 ERR_NOMOTD = "422"
 ERR_NICKNAMEINUSE = "433"
 
-function writecmd(...)
+irc = {}
+
+function irc.writecmd(...)
 	local cmd = ""
 	-- TODO enforce no spaces
 	for i, v in ipairs({...}) do
@@ -18,18 +20,15 @@ function writecmd(...)
 		end
 		cmd = cmd .. v
 	end
-	writecmdraw(cmd)
-end
 
-function writecmdraw(cmd)
 	if config.debug then
-		print("=>", escape(cmd))
+		print("=>", ui.escape(cmd))
 	end
 	capi.writesock(cmd)
-	newcmd(":"..conn.user.."!@ "..cmd, false)
+	irc.newcmd(":"..conn.user.."!@ "..cmd, false)
 end
 
-function parsecmd(line)
+function irc.parsecmd(line)
 	local data = {}
 
 	local pos = 1
@@ -74,99 +73,132 @@ function parsecmd(line)
 	return data
 end
 
--- this mess isn't even correct. or at least it doesn't match up weechat's
--- settings quite right. 16+ should be correct, though.
-local colormap = {
-	[ 0] = 7,   [ 1] = 0,   [ 2] = 4,   [ 3] = 2,   [ 4] = 9,   [ 5] = 3,   
-	[ 6] = 5,   [ 7] = 202, [ 8] = 11,  [ 9] = 10,  [10] = 6,   [11] = 14,  
-	[12] = 12,  [13] = 13,  [14] = 8,   [15] = 7,   [16] = 52,  [17] = 94,  
-	[18] = 100, [19] = 58,  [20] = 22,  [21] = 29,  [22] = 23,  [23] = 24,  
-	[24] = 17,  [25] = 54,  [26] = 53,  [27] = 89,  [28] = 88,  [29] = 130, 
-	[30] = 142, [31] = 64,  [32] = 28,  [33] = 35,  [34] = 30,  [35] = 25,  
-	[36] = 18,  [37] = 91,  [38] = 90,  [39] = 125, [40] = 124, [41] = 166, 
-	[42] = 184, [43] = 106, [44] = 34,  [45] = 49,  [46] = 37,  [47] = 33,  
-	[48] = 19,  [49] = 129, [50] = 127, [51] = 161, [52] = 196, [53] = 208, 
-	[54] = 226, [55] = 154, [56] = 46,  [57] = 86,  [58] = 51,  [59] = 75,  
-	[60] = 21,  [61] = 171, [62] = 201, [63] = 198, [64] = 203, [65] = 215, 
-	[66] = 227, [67] = 191, [68] = 83,  [69] = 122, [70] = 87,  [71] = 111, 
-	[72] = 63,  [73] = 177, [74] = 207, [75] = 205, [76] = 217, [77] = 223, 
-	[78] = 229, [79] = 193, [80] = 157, [81] = 158, [82] = 159, [83] = 153, 
-	[84] = 147, [85] = 183, [86] = 219, [87] = 212, [88] = 16,  [89] = 233, 
-	[90] = 235, [91] = 237, [92] = 239, [93] = 241, [94] = 244, [95] = 247, 
-	[96] = 250, [97] = 254, [98] = 231, 
-}
+-- Called for new commands, both from the server and from the client.
+function irc.newcmd(line, remote)
+	local args = irc.parsecmd(line)
+	local from = args.user
+	local cmd = string.upper(args[1])
+	local to = args[2] -- not always valid!
 
--- format irc messages for display, escaping unknown characters
--- https://modern.ircdocs.horse/formatting.html
-function ircformat(s)
-	-- DON'T USE \x1b[0m unless you're absolutely sure. check the correct code
-	-- see tsetattr in http://git.suckless.org/st/file/st.c.html
+	if not remote and not (cmd == "PRIVMSG" or cmd == "NOTICE") then
+		-- (afaik) all other messages are echoed back at us
+		return
+	end
 
-	local function t(cur, enable, disable) -- toggle
-		if cur then
-			return false, disable
+	if cmd == "PRIVMSG" or cmd == "NOTICE" then
+		-- TODO strip first `to` character for e.g. +#tildetown
+		if to == "*" then return end
+
+		if not args.ctcp or args.ctcp.cmd == "ACTION" then
+			-- TODO factor out dm checking for consistency
+			if to == conn.user then -- direct message
+				buffers:push(from, line, {urgency=1})
+			else
+				local msg
+				if not args.ctcp then
+					msg = args[3]
+				else
+					msg = args.ctcp.params or ""
+				end
+
+				if string.match(msg, nick_pattern(conn.user)) then
+					buffers:push(to, line, {urgency=2})
+				elseif from == conn.user then
+					buffers:push(to, line, {urgency=1})
+				else
+					buffers:push(to, line)
+				end
+			end
+		end
+
+		if cmd == "PRIVMSG" and args.ctcp and remote then
+			if args.ctcp.cmd == "VERSION" then
+				irc.writecmd("NOTICE", from, "\1VERSION hewwo\1")
+			elseif args.ctcp.cmd == "PING" then
+				irc.writecmd("NOTICE", from, args[3])
+			end
+		end
+	elseif cmd == "JOIN" then
+		buffers:push(to, line, {urgency=-1})
+		if from == conn.user then
+			buffers.tbl[to].connected = true
+		end
+		buffers.tbl[to].users[from] = true
+	elseif cmd == "PART" then
+		buffers:push(to, line, {urgency=-1})
+		buffers:leave(to, from)
+	elseif cmd == "KICK" then
+		buffers:push(to, line)
+		buffers:leave(to, args[3])
+	elseif cmd == "INVITE" then
+		buffers:push(from, line, {urgency=2})
+	elseif cmd == "QUIT" then
+		local display = 0
+		if from == conn.user then
+			-- print manually
+			display = -1
+			ui.printcmd(line, os.time())
+		end
+		for chan,buf in pairs(buffers.tbl) do
+			if buf.users[from] then
+				buffers:push(chan, line, {display=display, urgency=-1})
+				buf.users[from] = nil
+			end
+		end
+	elseif cmd == "NICK" then
+		local display = 0
+		if from == conn.user then
+			conn.user = to
+			-- print manually
+			display = -1
+			ui.printcmd(line, os.time())
+		end
+		for chan,buf in pairs(buffers.tbl) do
+			if buf.users[from] then
+				buffers:push(chan, line, {display=display, urgency=-1})
+				buf.users[from] = nil
+				buf.users[to] = true
+			end
+		end
+	elseif cmd == RPL_ENDOFMOTD or cmd == ERR_NOMOTD then
+		conn.active = true
+		print(i18n.connected)
+		print()
+	elseif cmd == RPL_TOPIC then
+		buffers:push(args[3], line)
+	elseif cmd == "TOPIC" then
+		local display = 0
+		if from == conn.user then display = 1 end
+		buffers:push(to, line, {display=display})
+	elseif cmd == RPL_LIST or cmd == RPL_LISTEND then
+		-- TODO list output should probably be pushed into a server buffer
+		-- but switching away from the current buffer could confuse users?
+
+		if ext.reason == "list" then ext.setpipe(true) end
+		ui.printcmd(line, os.time())
+		if ext.reason == "list" then ext.setpipe(false) end
+	elseif cmd == ERR_NICKNAMEINUSE then
+		if conn.active then
+			printf("%s is taken, leaving your nick as %s", hi(args[3]), hi(conn.user))
 		else
-			return true, enable
+			local new = config.nick .. conn.nick_idx
+			conn.nick_idx = conn.nick_idx + 1
+			printf("%s is taken, trying %s", hi(conn.user), hi(new))
+			conn.user = new
+			irc.writecmd("NICK", new)
+		end
+	elseif string.sub(cmd, 1, 1) == "4" then
+		-- TODO the user should never see this. they should instead see friendlier
+		-- messages with instructions how to proceed
+		printf("irc error %s: %s", cmd, args[#args])
+	elseif cmd == "PING" then
+		irc.writecmd("PONG", to)
+	elseif cmd == RPL_NAMREPLY then
+		to = args[4]
+		buffers:make(to)
+		-- TODO incorrect nick parsing
+		for nick in string.gmatch(args[5], "[^ ,*?!@]+") do
+			buffers.tbl[to].users[nick] = true
 		end
 	end
-
-	local function color(fg, bg)
-		if not config.color.in_messages then
-			return ""
-		end
-
-		local function get_fg(fg)
-			if not fg then return "" end
-			fg = tonumber(fg)
-			if fg == 99 then
-				return "\x1b[39m" -- reset
-			else
-				return string.format("\x1b[38;5;%sm", colormap[fg])
-			end
-		end
-		local function get_bg(bg)
-			if not bg then return "" end
-			bg = tonumber(bg)
-			if bg == 99 then
-				return "\x1b[49m" -- reset
-			else
-				return string.format("\x1b[48;5;%sm", colormap[bg])
-			end
-		end
-		return get_fg(fg) .. get_bg(bg)
-	end
-
-	local bold, italic, underline, reverse
-
-	s = string.gsub(s, "[\x00-\x1F\x7F]", function (c)
-		local r -- replacement
-
-		if c == "\x02" then
-			bold, r = t(bold, "\x1b[1m", "\x1b[22m")
-		elseif c == "\x03" then
-			-- color handling is a special beast. leave it for later
-			return c
-		elseif c == "\x1d" then
-			italic, r = t(italic, "\x1b[3m", "\x1b[23m")
-		elseif c == "\x1f" then
-			underline, r = t(underline, "\x1b[4m", "\x1b[24m")
-		elseif c == "\x16" then
-			reverse, r = t(reverse, "\x1b[7m", "\x1b[27m")
-		elseif c == "\x0F" then
-			r = "\x1b[m"
-			bold = false
-			italic = false
-			underline = false
-			reverse = false
-		end
-
-		return r or escape_char(c)
-	end)
-
-	s = string.gsub(s, "\x03([0-9][0-9]?),([0-9][0-9]?)", color)
-	s = string.gsub(s, "\x03([0-9][0-9]?)", color)
-	s = string.gsub(s, "\x03", "\x1b[39m\x1b[49m")
-
-	if string.find(s, "\x1b") then s = s.."\x1b[m" end -- reset if needed
-	return s
 end

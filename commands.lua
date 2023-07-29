@@ -51,8 +51,8 @@ commands["nick"] = function(line, args)
 	elseif #args == 1 then
 		local nick = args[1]
 		-- TODO validate nick
-		writecmd("NICK", nick)
-		if not conn.nick_verified then
+		irc.writecmd("NICK", nick)
+		if not conn.active then
 			conn.user = nick
 		end
 		printf("changing your nick to %s...", hi(nick))
@@ -66,9 +66,9 @@ commands["join"] = function(line, args)
 		print("missing argument. try /join #tildetown")
 		return
 	end
-	-- TODO check conn.nick_verified
+	-- TODO check conn.active
 	for i, v in ipairs(args) do
-		writecmd("JOIN", v)
+		irc.writecmd("JOIN", v)
 		buffers:make(v)
 	end
 	local last = args[#args]
@@ -77,10 +77,10 @@ end
 
 commands["part"] = function(line, args)
 	if #args == 0 then
-		writecmd("PART", conn.chan)
+		irc.writecmd("PART", conn.chan)
 	else
 		for i, v in ipairs(args) do
-			writecmd("PART", v)
+			irc.writecmd("PART", v)
 		end
 	end
 end
@@ -90,7 +90,7 @@ commands["quit"] = function(line, args)
 	-- remember all caps when you spell the command's name
 	if args[0] == "QUIT" then
 		args = cmd_parse(line, 1)
-		writecmd("QUIT", args[1] or config.quit_msg)
+		irc.writecmd("QUIT", args[1] or config.quit_msg)
 		os.exit(0)
 	else
 		print(i18n.quit_failsafe)
@@ -100,7 +100,7 @@ end
 commands["msg"] = function(line, args)
 	local args = cmd_parse(line, 2)
 	if #args == 2 then
-		writecmd("PRIVMSG", args[1], args[2])
+		irc.writecmd("PRIVMSG", args[1], args[2])
 		conn.pm_hint = true -- TODO move to the new hint system
 	else
 		printf("usage: /%s [user] blah blah blah", args[0])
@@ -124,7 +124,7 @@ commands["action"] = function(line, args)
 		return
 	end
 	local content = cmd_parse(line, 1)[1] or ""
-	writecmd("PRIVMSG", conn.chan, "\1ACTION "..content.."\1")
+	irc.writecmd("PRIVMSG", conn.chan, "\1ACTION "..content.."\1")
 end
 commands["me"] = commands["action"]
 
@@ -294,10 +294,10 @@ commands["topic"] = function(line, args)
 	end
 	if string.sub(args[1], 1, 1) == "#" then
 		args = cmd_parse(line, 2)
-		writecmd("TOPIC", args[1], args[2])
+		irc.writecmd("TOPIC", args[1], args[2])
 	else
 		args = cmd_parse(line, 1)
-		writecmd("TOPIC", conn.chan, args[1])
+		irc.writecmd("TOPIC", conn.chan, args[1])
 	end
 end
 
@@ -311,7 +311,7 @@ commands["list"] = function(line, args)
 	if args.pipe then
 		ext.run(args.pipe, "list")
 	end
-	writecmd("LIST", ">1")
+	irc.writecmd("LIST", ">1")
 end
 
 commands["config"] = function(line, args)
@@ -360,5 +360,5 @@ end
 
 commands["raw"] = function(line, args)
 	args = cmd_parse(line, 1)
-	writecmdraw(args[1])
+	irc.writecmd(args[1])
 end
