@@ -20,7 +20,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-static void l_callfn(char *name, int nresults, const char *arg);
+static void cback(char *name, int nresults, const char *arg);
 
 static void in_net(char *s);
 static void in_user(char *line);
@@ -61,14 +61,23 @@ static const luaL_Reg capi_reg[] = {
 
 
 static void
-l_callfn(char *name, int nresults, const char *arg)
+cback(char *name, int nresults, const char *arg)
 {
 	int base = lua_gettop(G.L);
 	lua_getglobal(G.L, "debug");
 	lua_getfield(G.L, -1, "traceback");
 	lua_remove(G.L, -2); /* remove debug from the stack */
 
-	lua_getglobal(G.L, name);
+	lua_getglobal(G.L, "cback");
+	if (lua_getfield(G.L, -1, name) != LUA_TFUNCTION) {
+		// TODO that certainly shouldn't be fatal either
+
+		linenoiseEditStop(&G.ls);
+		printf("error: cback.%s isn't declared\n", name);
+		exit(1);
+	}
+	lua_remove(G.L, -2); /* remove cback. from the stack */
+
 	if (arg) {
 		lua_pushstring(G.L, arg);
 	} else {
@@ -96,13 +105,13 @@ l_callfn(char *name, int nresults, const char *arg)
 static void
 in_net(char *s)
 {
-	l_callfn("in_net", 0, s);
+	cback("in_net", 0, s);
 }
 
 static void
 in_user(char *line)
 {
-	l_callfn("in_user", 0, line);
+	cback("in_user", 0, line);
 }
 
 static void
@@ -165,7 +174,7 @@ mainloop(const char *host, const char *port)
 	}
 
 	bi = bufio_init();
-	l_callfn("init", 0, NULL);
+	cback("init", 0, NULL);
 
 	linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, G.prompt);
 	G.did_print = false;
@@ -199,7 +208,7 @@ mainloop(const char *host, const char *port)
 				if (bufio_read(bi, G.fd, in_net) == 0) {
 					close(G.fd);
 					G.fd = -1;
-					l_callfn("disconnected", 0, NULL);
+					cback("disconnected", 0, NULL);
 				}
 			}
 		} else if (errno != EINTR) {
@@ -214,7 +223,7 @@ mainloop(const char *host, const char *port)
 				fclose(G.ext_pipe);
 			}
 			G.ext_pipe = NULL;
-			l_callfn("ext_quit", 0, NULL);
+			cback("ext_quit", 0, NULL);
 
 			linenoiseShow(&G.ls);
 			G.did_print = false;
@@ -235,7 +244,7 @@ completion(const char *buf, linenoiseCompletions *lc)
 	int base = lua_gettop(G.L);
 	int len = 0;
 
-	l_callfn("completion", 1, buf);
+	cback("completion", 1, buf);
 
 	if (!lua_isnil(G.L, -1)) {
 		luaL_checktype(G.L, -1, LUA_TTABLE);

@@ -7,6 +7,9 @@ require "buffers"
 require "i18n"
 -- also see eof
 
+-- for functions called by C
+cback = {}
+
 conn = {
 	user = nil,
 	nick_verified = false,
@@ -61,7 +64,7 @@ function ext.setpipe(b)
 	ext._pipe = b
 end
 
-function ext_quit()
+function cback.ext_quit()
 	ext.running = false
 	-- TODO notify the user if the ringbuf overflowed
 	capi.print_internal("printing the messages you've missed...")
@@ -73,7 +76,7 @@ function ext_quit()
 end
 
 
-function init()
+function cback.init()
 	local default_name = os.getenv("USER") or "townie"
 	config.nick = config.nick or default_name -- a hack
 	conn.user = config.nick
@@ -96,13 +99,13 @@ function init()
 	end
 end
 
-function disconnected()
+function cback.disconnected()
 	-- TODO do something reasonable
 	print([[you got disconnected from the server :/]])
 	print([[restart hewwo with "/QUIT" to reconnect]])
 end
 
-function in_net(line)
+function cback.in_net(line)
 	if config.debug then
 		print("<=", escape(line))
 	end
@@ -110,7 +113,7 @@ function in_net(line)
 	updateprompt()
 end
 
-function in_user(line)
+function cback.in_user(line)
 	if line == "" then return end
 	if line == nil then
 		hint(i18n.quit_hint)
@@ -273,7 +276,7 @@ function newcmd(line, remote)
 	end
 end
 
-function completion(line)
+function cback.completion(line)
 	local tbl = {}
 	local word = string.match(line, "[^ ]*$") or ""
 	if word == "" then return {} end
