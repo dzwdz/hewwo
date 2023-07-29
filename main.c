@@ -41,7 +41,7 @@ static struct {
 	lua_State *L;
 	int fd;
 	char *prompt;
-	bool did_print; 
+	bool prompt_visib; 
 
 	char *ext_cmd;
 	pid_t ext_pid;
@@ -127,6 +127,7 @@ ext_run(void)
 	int pipefd[2];
 	int ret;
 	if (G.ext_pid || G.ext_cmd == NULL) return;
+	G.prompt_visib = false;
 	linenoiseHide(&G.ls);
 
 	G.ext_cmd = NULL;
@@ -151,91 +152,6 @@ ext_run(void)
 		G.ext_pipe = fdopen(pipefd[1], "a");
 	}
 	free(cmd);
-}
-
-void
-mainloop(const char *host, const char *port)
-{
-	// TODO merge into main()
-	static char lsbuf[512];
-	Bufio *bi;
-	sigset_t emptyset, blockset;
-
-	/* only handle SIGCHLD during pselect() */
-	sigemptyset(&emptyset);
-	sigemptyset(&blockset);
-	sigaddset(&blockset, SIGCHLD);
-	sigprocmask(SIG_BLOCK, &blockset, NULL);
-
-	G.fd = dial(host, port);
-	if (G.fd < 0) {
-		fprintf(stderr, "couldn't connect to the server at %s:%s :(\n", host, port);
-		exit(1);
-	}
-
-	bi = bufio_init();
-	cback("init", 0, NULL);
-
-	linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, G.prompt);
-	G.did_print = false;
-
-	for (;;) {
-		fd_set rfds;
-		int ret;
-
-		FD_ZERO(&rfds);
-		if (G.ext_pid == 0) {
-			FD_SET(0, &rfds);
-		}
-		if (G.fd != -1) {
-			FD_SET(G.fd, &rfds);
-		}
-		/* If fd_set is empty, pselect still waits for a signal, as expected.
-		 * well, at least on Linux it does. I think that's portable, though. */
-
-		errno = 0;
-		ret = pselect(MAX(1, G.fd+1), &rfds, NULL, NULL, NULL, &emptyset);
-		if (ret >= 0) {
-			if (FD_ISSET(0, &rfds)) {
-				char *line = linenoiseEditFeed(&G.ls);
-				if (line == linenoiseEditMore) continue;
-				linenoiseHide(&G.ls);
-				in_user(line);
-				linenoiseFree(line);
-				linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, G.prompt);
-			}
-			if (G.fd != -1 && FD_ISSET(G.fd, &rfds)) {
-				if (bufio_read(bi, G.fd, in_net) == 0) {
-					close(G.fd);
-					G.fd = -1;
-					cback("disconnected", 0, NULL);
-				}
-			}
-		} else if (errno != EINTR) {
-			linenoiseEditStop(&G.ls);
-			perror("select()");
-			exit(1);
-		}
-
-		if (G.ext_pid && waitpid(G.ext_pid, NULL, WNOHANG) == G.ext_pid) {
-			G.ext_pid = false;
-			if (G.ext_pipe) {
-				fclose(G.ext_pipe);
-			}
-			G.ext_pipe = NULL;
-			cback("ext_quit", 0, NULL);
-
-			linenoiseShow(&G.ls);
-			G.did_print = false;
-		}
-		if (G.did_print) {
-			linenoiseShow(&G.ls);
-			G.did_print = false;
-		}
-		if (G.ext_cmd) {
-			ext_run();
-		}
-	}
 }
 
 static void
@@ -276,9 +192,9 @@ l_print(lua_State *L)
 			return 0;
 		}
 	} else {
-		if (!G.did_print) {
+		if (G.prompt_visib) {
 			linenoiseHide(&G.ls);
-			G.did_print = true;
+			G.prompt_visib = false;
 		}
 	}
 
@@ -307,12 +223,14 @@ l_setprompt(lua_State *L)
 	}
 	copy = strdup(arg);
 
-	linenoiseHide(&G.ls);
+	if (G.prompt_visib) {
+		linenoiseHide(&G.ls);
+		G.prompt_visib = false;
+	}
 	free(G.prompt);
 	G.prompt = copy;
 	G.ls.prompt = copy;
 	G.ls.plen = strlen(copy);
-	linenoiseShow(&G.ls);
 	return 0;
 }
 
@@ -363,50 +281,121 @@ l_ext_eof(lua_State *L)
 int
 main(int argc, char **argv)
 {
-	const char *host = "localhost", *port = "6667";
-	if (1 < argc) host = argv[1];
-	if (2 < argc) port = argv[2];
-	if (3 < argc) {
-		fprintf(stderr, "usage: hewwo [host] [port]\nhint: you've used too many arguments\n");
-		return 1;
-	}
-
-	G.L = luaL_newstate();
-	G.did_print = true;
-	G.prompt = strdup(": ");
+	static char lsbuf[512];
+	sigset_t emptyset, blockset;
+	Bufio *bi = bufio_init();
 
 	{
 		struct sigaction sa = {0};
 		sa.sa_handler = sighandler;
+		/* set up a dummy signal handler to trigger EINTR in pselect() */
 		if (sigaction(SIGCHLD, &sa, NULL) == -1) {
 			perror("sigaction()");
 			exit(1);
 		}
+
+		/* block SIGCHLD until pselect() */
+		sigemptyset(&emptyset);
+		sigemptyset(&blockset);
+		sigaddset(&blockset, SIGCHLD);
+		sigprocmask(SIG_BLOCK, &blockset, NULL);
 	}
 
-	luaL_openlibs(G.L);
+	{
+		G.L = luaL_newstate();
+		luaL_openlibs(G.L);
 
-	/* override package.{c,}path
-	 * i want to avoid depending on cwd (and risking executing random code) */
-	int base = lua_gettop(G.L);
-	lua_getglobal(G.L, "package");
-	lua_pushstring(G.L, get_luapath());
-	lua_setfield(G.L, -2, "path");
-	lua_pushstring(G.L, "");
-	lua_setfield(G.L, -2, "cpath");
-	lua_settop(G.L, base);
+		/* override package.{c,}path
+		 * i want to avoid depending on cwd (and risking executing random code) */
+		// TODO check if openlibs uses package.path
+		int base = lua_gettop(G.L);
+		lua_getglobal(G.L, "package");
+		lua_pushstring(G.L, get_luapath());
+		lua_setfield(G.L, -2, "path");
+		lua_pushstring(G.L, "");
+		lua_setfield(G.L, -2, "cpath");
+		lua_settop(G.L, base);
 
-	/* prepare the c/lua interface */
-	luaL_newlib(G.L, capi_reg);
-	lua_setglobal(G.L, "capi");
+		/* prepare the c/lua interface */
+		luaL_newlib(G.L, capi_reg);
+		lua_setglobal(G.L, "capi");
+	}
+
+	G.prompt = strdup(": ");
+
 	if (luaL_dostring(G.L, "require \"main\"")) {
 		printf("I've hit a Lua error :(\n%s\n", lua_tostring(G.L, -1));
 		exit(1);
 	}
 
-	linenoiseSetCompletionCallback(completion);
-
 	printf("hi! i'm an irc client. please give me a second to connect...\n");
-	mainloop(host, port);
-	lua_close(G.L);
+
+	// TODO readd argv parsing
+	G.fd = dial("10.69.0.1", "8000");
+	if (G.fd < 0) {
+		fprintf(stderr, "couldn't connect to the server at %s:%s :(\n", "TODO", "TODO");
+		exit(1);
+	}
+
+	cback("init", 0, NULL);
+
+	linenoiseSetCompletionCallback(completion);
+	linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, G.prompt);
+	G.prompt_visib = true;
+
+	for (;;) {
+		fd_set rfds;
+		int ret;
+
+		FD_ZERO(&rfds);
+		if (G.ext_pid == 0) {
+			FD_SET(0, &rfds);
+		}
+		if (G.fd != -1) {
+			FD_SET(G.fd, &rfds);
+		}
+		/* If fd_set is empty, pselect still waits for a signal, as expected.
+		 * Well, at least on Linux it does. I think that's portable, though. */
+		errno = 0;
+		ret = pselect(MAX(1, G.fd+1), &rfds, NULL, NULL, NULL, &emptyset);
+		if (ret >= 0) {
+			if (FD_ISSET(0, &rfds)) {
+				char *line = linenoiseEditFeed(&G.ls);
+				if (line == linenoiseEditMore) continue;
+				linenoiseHide(&G.ls);
+				G.prompt_visib = false;
+				in_user(line);
+				linenoiseFree(line);
+				linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, G.prompt);
+				G.prompt_visib = true;
+			}
+			if (G.fd != -1 && FD_ISSET(G.fd, &rfds)) {
+				if (bufio_read(bi, G.fd, in_net) == 0) {
+					close(G.fd);
+					G.fd = -1;
+					cback("disconnected", 0, NULL);
+				}
+			}
+		} else if (errno != EINTR) {
+			linenoiseEditStop(&G.ls);
+			perror("select()");
+			exit(1);
+		}
+
+		if (G.ext_pid && waitpid(G.ext_pid, NULL, WNOHANG) == G.ext_pid) {
+			G.ext_pid = false;
+			if (G.ext_pipe) {
+				fclose(G.ext_pipe);
+			}
+			G.ext_pipe = NULL;
+			cback("ext_quit", 0, NULL);
+		}
+		if (!G.ext_pid && !G.prompt_visib) {
+			linenoiseShow(&G.ls);
+			G.prompt_visib = true;
+		}
+		if (G.ext_cmd) {
+			ext_run();
+		}
+	}
 }
