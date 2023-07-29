@@ -1,12 +1,4 @@
--- the C api provides:
--- writesock, setprompt, history_{add,resize}
--- print_internal, ext_run_internal, ext_eof
-
--- requires: init, in_net, in_user, completion, ext_quit
-
--- TODO just put the provided stuff in capi.
---      and the required stuff in, idk, cback.
-
+-- "capi" is provided by C
 require "tests"
 require "util"
 require "irc"
@@ -35,7 +27,7 @@ ext.running = false
 ext.ringbuf = nil
 ext._pipe = false
 ext.reason = nil
-ext.eof = ext_eof
+ext.eof = capi.ext_eof
 function print(...)
 	if ext.running then
 		if ext._pipe then
@@ -45,12 +37,12 @@ function print(...)
 					args[k] = ansi_strip(v)
 				end
 			end
-			print_internal(table.unpack(args))
+			capi.print_internal(table.unpack(args))
 		else
 			ext.ringbuf:push({...})
 		end
 	else
-		print_internal(...)
+		capi.print_internal(...)
 	end
 end
 
@@ -58,7 +50,7 @@ function ext.run(cmdline, reason)
 	if ext.running then return end
 	ext.running = true
 	ext.ringbuf = ringbuf:new(500)
-	ext_run_internal(cmdline)
+	capi.ext_run_internal(cmdline)
 	ext._pipe = false
 	ext.reason = reason
 end
@@ -72,9 +64,9 @@ end
 function ext_quit()
 	ext.running = false
 	-- TODO notify the user if the ringbuf overflowed
-	print_internal("printing the messages you've missed...")
+	capi.print_internal("printing the messages you've missed...")
 	for v in ext.ringbuf:iter(ext.ringbuf) do
-		print_internal(table.unpack(v))
+		capi.print_internal(table.unpack(v))
 	end
 	ext.ringbuf = nil
 	ext.reason = nil
@@ -89,7 +81,7 @@ function init()
 	writecmd("USER", config.ident.username or default_name, "0", "*",
 	                 config.ident.realname or default_name)
 	writecmd("NICK", conn.user)
-	history_resize(config.history_size)
+	capi.history_resize(config.history_size)
 
 	conn.chan = nil
 
@@ -124,7 +116,7 @@ function in_user(line)
 		hint(i18n.quit_hint)
 		return
 	end
-	history_add(line)
+	capi.history_add(line)
 
 	if string.sub(line, 1, 1) == "/" then
 		if string.sub(line, 2, 2) == "/" then
@@ -317,7 +309,7 @@ end
 function updateprompt()
 	local chan = conn.chan or "nowhere"
 	local unread, mentions = buffers:count_unread()
-	setprompt(string.format("[%d!%d %s]: ", unread, mentions, chan))
+	capi.setprompt(string.format("[%d!%d %s]: ", unread, mentions, chan))
 end
 
 -- Prints an IRC command.

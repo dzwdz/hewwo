@@ -14,6 +14,12 @@
 
 #define CFGDIR "/hewwo/edge/"
 
+static char *cpycat(char *dst, const char *src);
+static char *cpycatfree(char *dst, const char *src);
+static char *lpath_base(char *dst, const char *base);
+static char *config_path(void);
+static char *exedir(void);
+
 static char *
 cpycat(char *dst, const char *src)
 {

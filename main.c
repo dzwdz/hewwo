@@ -19,7 +19,23 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-struct {
+static void l_callfn(char *name, char *arg);
+
+static void in_net(char *s);
+static void in_user(char *line);
+static void sighandler(int signo);
+static void ext_run(void);
+static void completion(const char *buf, linenoiseCompletions *lc);
+
+static int l_print(lua_State *L);
+static int l_setprompt(lua_State *L);
+static int l_writesock(lua_State *L);
+static int l_history_add(lua_State *L);
+static int l_history_resize(lua_State *L);
+static int l_ext_run(lua_State *L);
+static int l_ext_eof(lua_State *L);
+
+static struct {
 	struct linenoiseState ls;
 	lua_State *L;
 	int fd;
@@ -30,6 +46,18 @@ struct {
 	pid_t ext_pid;
 	FILE *ext_pipe;
 } G;
+
+static const luaL_Reg capi_reg[] = {
+	{"print_internal", l_print},
+	{"setprompt", l_setprompt},
+	{"writesock", l_writesock},
+	{"history_add", l_history_add},
+	{"history_resize", l_history_resize},
+	{"ext_run_internal", l_ext_run},
+	{"ext_eof", l_ext_eof},
+	{NULL, NULL}
+};
+
 
 static void
 l_callfn(char *name, char *arg)
@@ -361,14 +389,8 @@ main(int argc, char **argv)
 	lua_settop(G.L, base);
 
 	/* prepare the c/lua interface */
-	// TODO turn into a lua module
-	lua_register(G.L, "print_internal", l_print);
-	lua_register(G.L, "setprompt", l_setprompt);
-	lua_register(G.L, "writesock", l_writesock);
-	lua_register(G.L, "history_add", l_history_add);
-	lua_register(G.L, "history_resize", l_history_resize);
-	lua_register(G.L, "ext_run_internal", l_ext_run);
-	lua_register(G.L, "ext_eof", l_ext_eof);
+	luaL_newlib(G.L, capi_reg);
+	lua_setglobal(G.L, "capi");
 	if (luaL_dostring(G.L, "require \"main\"")) {
 		printf("I've hit a Lua error :(\n%s\n", lua_tostring(G.L, -1));
 		exit(1);

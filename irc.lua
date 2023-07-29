@@ -25,7 +25,7 @@ function writecmdraw(cmd)
 	if config.debug then
 		print("=>", escape(cmd))
 	end
-	writesock(cmd)
+	capi.writesock(cmd)
 	newcmd(":"..conn.user.."!@ "..cmd, false)
 end
 
