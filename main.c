@@ -8,6 +8,7 @@
 #include "linenoise/linenoise.h"
 #include "lua/lauxlib.h"
 #include "lua/lualib.h"
+#include <assert.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -19,7 +20,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-static void l_callfn(char *name, char *arg);
+static void l_callfn(char *name, int nresults, const char *arg);
 
 static void in_net(char *s);
 static void in_user(char *line);
@@ -60,7 +61,7 @@ static const luaL_Reg capi_reg[] = {
 
 
 static void
-l_callfn(char *name, char *arg)
+l_callfn(char *name, int nresults, const char *arg)
 {
 	int base = lua_gettop(G.L);
 	lua_getglobal(G.L, "debug");
@@ -73,26 +74,35 @@ l_callfn(char *name, char *arg)
 	} else {
 		lua_pushnil(G.L);
 	}
-	if (lua_pcall(G.L, 1, 0, base+1) != LUA_OK) {
+	/* stack:
+	 * [base+1] = debug.traceback
+	 * [base+2] = function to call
+	 * [base+3] = argument
+	 */
+	assert(lua_gettop(G.L) == base + 3);
+	if (lua_pcall(G.L, 1, nresults, base+1) != LUA_OK) {
 		linenoiseEditStop(&G.ls);
 		// TODO shouldn't always be fatal
 		printf("I've hit a Lua error :(\n%s\n", lua_tostring(G.L, -1));
 		exit(1);
 	}
-
-	lua_settop(G.L, base);
+	/* stack:
+	 * [base+1] = debug.traceback
+	 * +nresults */
+	assert(lua_gettop(G.L) == base + 1 + nresults);
+	lua_remove(G.L, base+1);
 }
 
 static void
 in_net(char *s)
 {
-	l_callfn("in_net", s);
+	l_callfn("in_net", 0, s);
 }
 
 static void
 in_user(char *line)
 {
-	l_callfn("in_user", line);
+	l_callfn("in_user", 0, line);
 }
 
 static void
@@ -155,7 +165,7 @@ mainloop(const char *host, const char *port)
 	}
 
 	bi = bufio_init();
-	l_callfn("init", NULL);
+	l_callfn("init", 0, NULL);
 
 	linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, G.prompt);
 	G.did_print = false;
@@ -189,7 +199,7 @@ mainloop(const char *host, const char *port)
 				if (bufio_read(bi, G.fd, in_net) == 0) {
 					close(G.fd);
 					G.fd = -1;
-					l_callfn("disconnected", NULL);
+					l_callfn("disconnected", 0, NULL);
 				}
 			}
 		} else if (errno != EINTR) {
@@ -204,7 +214,7 @@ mainloop(const char *host, const char *port)
 				fclose(G.ext_pipe);
 			}
 			G.ext_pipe = NULL;
-			l_callfn("ext_quit", NULL);
+			l_callfn("ext_quit", 0, NULL);
 
 			linenoiseShow(&G.ls);
 			G.did_print = false;
@@ -223,33 +233,22 @@ static void
 completion(const char *buf, linenoiseCompletions *lc)
 {
 	int base = lua_gettop(G.L);
-	lua_getglobal(G.L, "debug");
-	lua_getfield(G.L, -1, "traceback");
-	lua_remove(G.L, -2); /* remove debug from the stack */
+	int len = 0;
 
-	if (lua_getglobal(G.L, "completion") == LUA_TFUNCTION) {
-		lua_pushstring(G.L, buf);
-		if (lua_pcall(G.L, 1, 1, base+1) == LUA_OK) {
-			int len = 0;
-			if (!lua_isnil(G.L, -1)) {
-				luaL_checktype(G.L, -1, LUA_TTABLE);
-				len = luaL_len(G.L, -1);
-				for (int i = 1; i <= len; i++) {
-					lua_geti(G.L, -1, i);
-					linenoiseAddCompletion(lc, lua_tostring(G.L, -1));
-					lua_pop(G.L, 1);
-				}
-			}
-			if (len == 0) {
-				/* required to prevent raw tabs from getting inserted */
-				linenoiseAddCompletion(lc, buf);
-			}
-		} else {
-			linenoiseEditStop(&G.ls);
-			// TODO shouldn't be fatal
-			printf("I've hit a Lua error :(\n%s\n", lua_tostring(G.L, -1));
-			exit(1);
+	l_callfn("completion", 1, buf);
+
+	if (!lua_isnil(G.L, -1)) {
+		luaL_checktype(G.L, -1, LUA_TTABLE);
+		len = luaL_len(G.L, -1);
+		for (int i = 1; i <= len; i++) {
+			lua_geti(G.L, -1, i);
+			linenoiseAddCompletion(lc, lua_tostring(G.L, -1));
+			lua_pop(G.L, 1);
 		}
+	}
+	if (len == 0) {
+		/* required to prevent raw tabs from getting inserted */
+		linenoiseAddCompletion(lc, buf);
 	}
 
 	lua_settop(G.L, base);
