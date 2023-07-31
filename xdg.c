@@ -37,9 +37,9 @@ lpath_base(char *dst, const char *base)
 {
 	if (base) {
 		dst = cpycatfree(dst, base);
-		dst = cpycatfree(dst, "?.lua;");
+		dst = cpycatfree(dst, "/?.lua;");
 		dst = cpycatfree(dst, base);
-		dst = cpycatfree(dst, "?/init.lua;");
+		dst = cpycatfree(dst, "/?/init.lua;");
 	}
 	return dst;
 }
@@ -59,34 +59,14 @@ config_path(void)
 	return NULL;
 }
 
-static char *
-exedir(void)
-{
-#ifdef __linux__
-	static char buf[512];
-	ssize_t ret;
-	ret = readlink("/proc/self/exe", buf, sizeof buf);
-	if (ret <= 0 && ret == sizeof buf) return NULL;
-	buf[ret] = '\0';
-
-	char *slash = strrchr(buf, '/');
-	if (!slash) return NULL;
-	slash[1] = '\0';
-	return buf;
-#else
-	return NULL;
-#endif
-}
-
 const char *
 get_luapath(void)
 {
 	char *res = strdup("");
 	char *cfg_path = config_path();
 
-	res = lpath_base(res, cfg_path);
+	res = lpath_base(res, config_path());
 	res = lpath_base(res, LUADIR_GLOBAL);
-	res = lpath_base(res, exedir());
 
 	free(cfg_path);
 	return res;
