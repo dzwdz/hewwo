@@ -98,6 +98,26 @@ commands["quit"] = function(line, args)
 	end
 end
 
+commands["close"] = function(line, args)
+	local chan = args[1] or conn.chan
+
+	-- TODO special buffers should be distinguished somehow else
+	if chan and string.match(chan, "^:") then
+		printf([[buffer %s is special]], chan)
+	elseif not buffers.tbl[chan] then
+		printf([[buffer %s not found]], chan)
+	elseif buffers.tbl[chan].connected then
+		printf([[buffer %s still connected]], chan)
+		printf([[try /part %s]], chan)
+	else
+		buffers.tbl[chan] = nil
+
+		if conn.chan == chan then
+			conn.chan = nil
+		end
+	end
+end
+
 commands["msg"] = function(line, args)
 	local args = cmd_parse(line, 2)
 	if #args == 2 then
