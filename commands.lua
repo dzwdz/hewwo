@@ -343,9 +343,10 @@ commands["config"] = function(line, args)
 
 		if not execf([[${EDITOR:-nano} "%s"]], path[1]) then return end
 
-		-- TODO hot reload
-		print("if you expected the config to get reloaded")
-		print("have a nice disappointment. this isn't implemented yet")
+		-- TODO handle errors
+		package.loaded["config"] = nil
+		require("config")
+		print("config reloaded!")
 	else
 		print("usage: /config [edit]")
 	end
