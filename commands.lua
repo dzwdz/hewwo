@@ -253,10 +253,10 @@ commands["buffer"] = function(line, args)
 	end
 
 	local pattern = args[1]
-	if buffers.tbl["#"..pattern] then
-		buffers:switch("#"..pattern)
-	elseif buffers.tbl[pattern] then
+	if buffers.tbl[pattern] then
 		buffers:switch(pattern)
+	elseif buffers.tbl["#"..pattern] then
+		buffers:switch("#"..pattern)
 	else
 		local matches = {}
 		for k,_ in pairs(buffers.tbl) do
