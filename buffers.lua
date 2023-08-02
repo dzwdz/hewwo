@@ -29,12 +29,6 @@ function buffers:switch(chan)
 	end
 end
 
--- pushes a fresh irc command to a buffer
--- urgency controls if the message should be printed as its pushed.
--- urgency == 0  ->  printed iff the buffer is visible
--- urgency >  0  ->  always printed, potentially with an urgency prefix
--- urgency <  0  ->  not printed
-
 --[[
 Pushes a fresh IRC command to a buffer.
 ent.display:
@@ -81,6 +75,10 @@ function buffers:push(buf, line, ent)
 	if display >= 0 and buffers:is_visible(buf) then
 		ui.printcmd(ent.line, ent.ts)
 	elseif display > 0 then
+		ui.printcmd(ent.line, ent.ts, buf)
+	elseif display >= 0 and urgency >= 0 and self.tbl[buf].unread == 1 then
+		-- print first new message in a previously unread buffer
+		ui.hint(i18n.hint.msg_in_unread)
 		ui.printcmd(ent.line, ent.ts, buf)
 	end
 end

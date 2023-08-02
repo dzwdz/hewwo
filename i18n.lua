@@ -14,6 +14,11 @@ hint: The active buffer switched to %s, so you'll only see messages from there.
       If you want to switch back, try "/buf %s".
       "/ls" or "/buffers" will list all the buffers you're in.]]
 
+i18n.hint = {}
+i18n.hint.msg_in_unread = [[
+hint: The first message received in a buffer you've switched away from will be
+      displayed, to let you know where people are currently talking.]]
+
 
 i18n.help = {}
 i18n.help.main = [[

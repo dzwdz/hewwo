@@ -165,7 +165,7 @@ function irc.newcmd(line, remote)
 		print(i18n.connected)
 		print()
 	elseif cmd == RPL_TOPIC then
-		buffers:push(args[3], line)
+		buffers:push(args[3], line, {urgency=-1})
 	elseif cmd == "TOPIC" then
 		local display = 0
 		if from == conn.user then display = 1 end
