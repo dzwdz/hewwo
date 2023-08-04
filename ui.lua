@@ -63,7 +63,7 @@ function ui.printcmd(rawline, ts, urgent_buf)
 		print(prefix .. userpart .. " " .. msg)
 
 		if private and not notice and from ~= conn.user then
-			ui.hint(i18n.query_hint, from)
+			ui.hint(i18n.hint.query, from)
 		end
 	elseif cmd == "JOIN" then
 		printf("%s--> %s has joined %s", prefix, hi(from), to)

@@ -5,7 +5,7 @@ buffers = {
 function buffers:switch(chan)
 	printf("--- switching to %s", chan)
 	if conn.chan then
-		ui.hint(i18n.buffer_hint, chan, conn.chan)
+		ui.hint(i18n.hint.buffer, chan, conn.chan)
 	end
 	conn.chan = chan
 	local buf = self.tbl[chan]

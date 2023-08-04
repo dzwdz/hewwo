@@ -126,7 +126,7 @@ end
 function cback.in_user(line)
 	if line == "" then return end
 	if line == nil then
-		ui.hint(i18n.quit_hint)
+		ui.hint(i18n.hint.quit)
 		return
 	end
 	capi.history_add(line)

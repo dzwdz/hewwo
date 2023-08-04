@@ -1,9 +1,4 @@
 commands = {}
-commands_help = {}
-
-function set_cmd_help(cmd, help)
-	commands_help[commands[cmd]] = help
-end
 
 -- max_args doesn't include the command itself
 -- see below for examples
@@ -205,15 +200,16 @@ commands["help"] = function(line, args)
 		table.sort(aliases_ord, function(a, b) return a[1] < b[1] end)
 		for _,v in ipairs(aliases_ord) do
 			local s = ""
+			local help
 			for _,alias in ipairs(v) do
 				if s == "" then
 					s = "/"..alias
 				else
 					s = s.." = /"..alias
 				end
+				help = help or i18n.cmds[alias]
 			end
 			print(s)
-			local help = commands_help[commands[v[1]]]
 			if help then 
 				print("  "..help)
 			end

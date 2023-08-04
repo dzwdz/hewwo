@@ -2,19 +2,17 @@
 
 i18n = {}
 
-i18n.query_hint = [[
+i18n.hint = {}
+i18n.hint.query = [[
 hint: you've just received a private message!
       try "/msg %s [your reply]"]]
 
-i18n.quit_hint = [[hint: if you meant to quit, try /QUIT]]
+i18n.hint.quit = [[hint: if you meant to quit, try /QUIT]]
 
--- TODO /help buffers
-i18n.buffer_hint = [[
+i18n.hint.buffer = [[
 hint: The active buffer switched to %s, so you'll only see messages from there.
-      If you want to switch back, try "/buf %s".
-      "/ls" or "/buffers" will list all the buffers you're in.]]
+      If you want to switch back, try "/buffer %s". Also, see "/help buffers".]]
 
-i18n.hint = {}
 i18n.hint.msg_in_unread = [[
 hint: The first message received in a buffer you've switched away from will be
       displayed, to let you know where people are currently talking.]]
@@ -79,11 +77,11 @@ if you can't, you can either:
 2. try using tmux: https://tilde.town/wiki/learn/tmux.html
 ]]
 
-
-set_cmd_help("action", [[Send a roleplay message, e.g. "/me jumps into hyperspace".]])
-set_cmd_help("buffers", [[List all the open buffers (including channels you left).]])
-set_cmd_help("config", [[Customize hewwo.]])
-set_cmd_help("nick", [[Set your own nick (shared across all channels).]])
-set_cmd_help("query", [[Send a private message to someone.]])
-set_cmd_help("quit", [[Leave all channels and close hewwo.]])
-set_cmd_help("who", [[See who's in the current channel.]])
+i18n.cmds = {}
+i18n.cmds.action = [[Send a roleplay message, e.g. "/me jumps into hyperspace".]]
+i18n.cmds.buffers = [[List all the open buffers (including channels you left).]]
+i18n.cmds.config = [[Customize hewwo.]]
+i18n.cmds.nick = [[Set your own nick (shared across all channels).]]
+i18n.cmds.query = [[Send a private message to someone.]]
+i18n.cmds.quit = [[Leave all channels and close hewwo.]]
+i18n.cmds.who = [[See who's in the current channel.]]
