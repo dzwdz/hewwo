@@ -55,9 +55,17 @@ function ui.printcmd(rawline, ts, urgent_buf)
 			if notice then
 				userpart = string.format("-%s:%s-", hi(from), to)
 			elseif action then
-				userpart = string.format("* %s", hi(from))
+				userpart = string.format("%4s |", "*")
+				msg = hi(from) .. " " .. msg
 			else
-				userpart = string.format("<%s>", hi(from))
+				local w = 4
+				local u, l = util.visub(hi(from), 0, w)
+				if l > w then
+					userpart = string.format("%s+|", u)
+				else
+					local pad = string.rep(" ", w-l)
+					userpart = string.format("%s%s |", pad, u)
+				end
 			end
 		end
 		print(prefix .. userpart .. " " .. msg)
