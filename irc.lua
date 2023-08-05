@@ -80,7 +80,7 @@ function irc.newcmd(line, remote)
 	local cmd = string.upper(args[1])
 	local to = args[2] -- not always valid!
 
-	if not remote and not (cmd == "PRIVMSG" or cmd == "NOTICE") then
+	if not remote and not (cmd == "PRIVMSG" or cmd == "NOTICE" or cmd == "QUIT") then
 		-- (afaik) all other messages are echoed back at us
 		return
 	end
