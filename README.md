@@ -10,10 +10,16 @@ in mind, but it should be usable on other networks too.
 ```sh
 git submodule update --init # if you cloned the repo without --recurse submodules
 
+## for development
+./configure --devel
 make
-# no `make install` target yet
-# if you're on Linux, just run the binary from wherever
-# otherwise, 🤷. sorry
+./hewwo
+
+## for installation
+./configure --prefix=/what/ever
+make
+make install
+/what/ever/bin/hewwo
 ```
 
 ## "features"
