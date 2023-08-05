@@ -10,15 +10,21 @@ function djb2(s)
 	return hash
 end
 
-function hi(s) -- highlight
+function hi(s, mention) -- highlight
 	if not s then return "" end
 	local colors = config.color.nicks
-	if not colors or #colors == 0 then return s end
-
+	local bg = config.mention_show_bg
+	local modifiers = {}
 	-- TODO highlighting commands in help prompts?
-	local cid = djb2(s) % #colors
-	local color = colors[cid+1]
-	return "\x1b["..color.."m"..s.."\x1b[0m"
+	if (colors and #colors ~= 0) then
+		local cid = djb2(s) % #colors
+		local color = colors[cid+1]
+		table.insert(modifiers, color)
+	end
+	if (mention and bg) then
+		table.insert(modifiers, "3")
+	end
+	return "\x1b["..table.concat(modifiers, ";").."m"..s.."\x1b[0m"
 end
 
 function nick_pattern(nick)

@@ -12,6 +12,11 @@ config.color.clock = "38;5;8"
 config.color.in_messages = true
 if os.getenv("NO_COLOR") then config.color = {} end -- https://no-color.org
 
+config.mention_show_bg = false -- toggles color background for mentions of your nickname
+
+config.left_margin = false -- all (most) messages starting at the same column, some empty space on the left
+config.left_margin_width = 20
+
 config.timefmt = "%H:%M "
 
 config.quit_msg = "oki goodnite uwu  >.<"

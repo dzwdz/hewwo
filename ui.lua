@@ -37,7 +37,7 @@ function ui.printcmd(rawline, ts, urgent_buf)
 
 		msg = fmt(msg)
 		-- highlight own nick
-		msg = string.gsub(msg, nick_pattern(conn.user), hi(conn.user))
+		msg = string.gsub(msg, nick_pattern(conn.user), hi(conn.user, true))
 
 		if private then
 			-- the original prefix might also include the buffer,
@@ -60,7 +60,26 @@ function ui.printcmd(rawline, ts, urgent_buf)
 				userpart = string.format("<%s>", hi(from))
 			end
 		end
-		print(prefix .. userpart .. " " .. msg)
+		if not config.left_margin then
+			print(prefix .. userpart .. " " .. msg)
+		else -- this is responsible for printing messages if the left_margin is enabled
+			-- yeah it's spaghetti, 
+			-- also i have no idea what 'notice' is so am copying that
+			-- t. juspib
+			if notice then
+				userpart = string.format("-%s:%s-", hi(from), to)
+			elseif action then
+				local vislen = string.len(os.date(config.timefmt, ts))
+				print(prefix .. string.rep(" ", config.left_margin_width - vislen -2 ) .. "\x1b[1m*\x1b[0m | " .. hi(from) .. " " .. msg)
+			else
+				local vislen = string.len(os.date(config.timefmt, ts)) + string.len(from) + 2
+				if not (vislen > config.left_margin_width) then
+					print(prefix .. string.rep(" ", config.left_margin_width - vislen -1) .. userpart  .. " | " .. msg)
+				else
+					print(prefix .. string.format("<%s>", hi(string.sub(from, 1, string.len(from)-(vislen-config.left_margin_width+1))).."+") .. "| " .. msg)
+				end
+			end
+		end
 
 		if private and not notice and from ~= conn.user then
 			ui.hint(i18n.hint.query, from)
