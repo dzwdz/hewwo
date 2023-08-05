@@ -10,6 +10,7 @@ in mind, but it should be usable on other networks too.
 ```sh
 git submodule update --init # if you cloned the repo without --recurse submodules
 
+./configure --devel
 make
 # no `make install` target yet
 # if you're on Linux, just run the binary from wherever
