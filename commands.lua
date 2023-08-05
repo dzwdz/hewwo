@@ -314,16 +314,10 @@ commands["buf"] = commands["buffer"]
 
 commands["topic"] = function(line, args)
 	if #args == 0 then
-		print("usage: /topic [a topic for the current channel]")
-		print("       /topic #stuff [a topic for #stuff]")
-		return
-	end
-	if string.sub(args[1], 1, 1) == "#" then
-		args = cmd_parse(line, 2)
-		irc.writecmd("TOPIC", args[1], args[2])
+		irc.writecmd("TOPIC", conn.chan)
 	else
-		args = cmd_parse(line, 1)
-		irc.writecmd("TOPIC", conn.chan, args[1])
+		local topic = cmd_parse(line, 1)[1]
+		irc.writecmd("TOPIC", conn.chan, topic)
 	end
 end
 
