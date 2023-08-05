@@ -10,15 +10,32 @@ function djb2(s)
 	return hash
 end
 
-function hi(s) -- highlight
+-- TODO move to ui.highlight
+function hi(s, what)
 	if not s then return "" end
+	local mods = {}
 	local colors = config.color.nicks
-	if not colors or #colors == 0 then return s end
+	what = what or "nick"
 
-	-- TODO highlighting commands in help prompts?
-	local cid = djb2(s) % #colors
-	local color = colors[cid+1]
-	return "\x1b["..color.."m"..s.."\x1b[0m"
+	if what == "nick" or what == "mention" then
+		-- it's a person!
+		if (colors or #colors == 0) then
+			local cid = djb2(s) % #colors
+			table.insert(mods, colors[cid+1])
+		end
+		if what == "mention" and (config.invert_mentions&1 == 1) then
+			table.insert(mods, "7")
+		end
+	else
+		-- it's a bug!
+		error(string.format("unrecognized highlight type %q", what))
+	end
+
+	if #mods == 0 then
+		return s
+	else
+		return "\x1b["..table.concat(mods, ";").."m"..s.."\x1b[m"
+	end
 end
 
 function nick_pattern(nick)

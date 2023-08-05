@@ -2,6 +2,8 @@ ui = {}
 
 -- Prints an IRC command.
 function ui.printcmd(rawline, ts, urgent_buf)
+	-- TODO pass the raw stored message object, so we know if it was urgent
+	-- e.g. for highlighting the sender's nick in PRIVMSG
 	local args = irc.parsecmd(rawline)
 	local from = args.user
 	local cmd = string.upper(args[1])
@@ -37,7 +39,7 @@ function ui.printcmd(rawline, ts, urgent_buf)
 
 		msg = fmt(msg)
 		-- highlight own nick
-		msg = string.gsub(msg, nick_pattern(conn.user), hi(conn.user))
+		msg = string.gsub(msg, nick_pattern(conn.user), hi(conn.user, "mention"))
 
 		if private then
 			-- the original prefix might also include the buffer,

@@ -12,6 +12,10 @@ config.color.clock = "38;5;8"
 config.color.in_messages = true
 if os.getenv("NO_COLOR") then config.color = {} end -- https://no-color.org
 
+-- 0= don't, 1= invert your nick, 2= invert the sender's nick, 3= both
+-- TODO 2 is unimplemented
+config.invert_mentions = 0
+
 config.timefmt = "%H:%M "
 
 config.quit_msg = "oki goodnite uwu  >.<"
