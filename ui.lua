@@ -80,6 +80,7 @@ function ui.printcmd(rawline, ts, urgent_buf)
 	elseif cmd == "NICK" then
 		printf("%s%s is now known as %s", prefix, hi(from), hi(to))
 	elseif cmd == RPL_TOPIC then
+		-- Sent when joining a channel
 		printf([[%s-- %s's topic is "%s"]], prefix, args[3], fmt(args[4]))
 	elseif cmd == "TOPIC" then
 		-- TODO it'd be nice to store the old topic
