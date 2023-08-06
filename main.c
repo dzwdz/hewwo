@@ -376,6 +376,7 @@ main(int argc, char **argv)
 		ret = pselect(MAX(1, G.fd+1), &rfds, NULL, NULL, NULL, &emptyset);
 		if (ret >= 0) {
 			if (FD_ISSET(0, &rfds)) {
+				// TODO detect eof
 				char *line = linenoiseEditFeed(&G.ls);
 				if (line == linenoiseEditMore) continue;
 				linenoiseHide(&G.ls);

@@ -183,34 +183,41 @@ commands["ls"] = commands["buffers"]
 commands["help"] = function(line, args)
 	local what = args[1]
 	if what == "cmd" then
-		local aliases = {}
-		local aliases_ord = {}
+		local aliases = {} -- map from function to its names
+		local aliases_ord = {} -- list of those names
 		for k,v in pairs(commands) do
 			if not aliases[v] then
 				aliases[v] = {}
 			end
-			table.insert(aliases[v], k)
+			table.insert(aliases[v], "/"..k)
 		end
 		for k,v in pairs(aliases) do
 			-- sort by length descending. the longest alias is the primary one
 			table.sort(v, function(a, b) return #a > #b end)
 			table.insert(aliases_ord, v)
 		end
-		-- sort commands alphabetically
+		-- sort the commands alphabetically
 		table.sort(aliases_ord, function(a, b) return a[1] < b[1] end)
-		for _,v in ipairs(aliases_ord) do
-			local s = ""
-			local help
-			for _,alias in ipairs(v) do
-				if s == "" then
-					s = "/"..alias
-				else
-					s = s.." = /"..alias
-				end
-				help = help or i18n.cmds[alias]
+
+		for _,names in ipairs(aliases_ord) do
+			local help, inline
+			for _,alias in ipairs(names) do
+				alias = string.sub(alias, 2) -- strip slash
+				help = help or i18n.cmd.help[alias]
+				inline = inline or i18n.cmd.inline[alias]
+			end
+
+			local s = names[1]
+			if inline then
+				s = s .. " " .. inline
+			end
+			if #names > 1 then
+				s = string.format("%s  (also %s)", s, table.concat(names, ",", 2))
 			end
 			print(s)
 			if help then 
+				-- TODO /help /command to view the entire help string
+				help = string.gsub(help, "\n.*", " [...]")
 				print("  "..help)
 			end
 		end

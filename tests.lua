@@ -32,6 +32,8 @@ function inspect(a)
 		end
 		s = string.gsub(s, ", $", "")
 		return s .. "}"
+	elseif type(a) == "function" then
+		return tostring(a)
 	else
 		return string.format("%q", a)
 	end

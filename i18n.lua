@@ -77,11 +77,17 @@ if you can't, you can either:
 2. try using tmux: https://tilde.town/wiki/learn/tmux.html
 ]]
 
-i18n.cmds = {}
-i18n.cmds.action = [[Send a roleplay message, e.g. "/me jumps into hyperspace".]]
-i18n.cmds.buffers = [[List all the open buffers (including channels you left).]]
-i18n.cmds.config = [[Customize hewwo.]]
-i18n.cmds.nick = [[Set your own nick (shared across all channels).]]
-i18n.cmds.query = [[Send a private message to someone.]]
-i18n.cmds.quit = [[Leave all channels and close hewwo.]]
-i18n.cmds.who = [[See who's in the current channel.]]
+i18n.cmd = {}
+i18n.cmd.help = {}
+i18n.cmd.help.action = [[Send a roleplay message, e.g. "/me jumps into hyperspace".]]
+i18n.cmd.help.buffers = [[List all the open buffers (including channels you left).
+See also: /help buffers]]
+i18n.cmd.help.config = [[Customize hewwo.]]
+i18n.cmd.help.nick = [[Set your own nick (shared across all channels).]]
+i18n.cmd.help.query = [[Send a private message to someone.]]
+i18n.cmd.help.quit = [[Leave all channels and close hewwo.]]
+i18n.cmd.help.who = [[See who's in the current channel.]]
+
+i18n.cmd.inline = {}
+i18n.cmd.inline.join = "#chan1 [#chan2...]"
+i18n.cmd.inline.config = "[edit]"
