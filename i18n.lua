@@ -84,10 +84,11 @@ i18n.cmd.help.buffers = [[List all the open buffers (including channels you left
 See also: /help buffers]]
 i18n.cmd.help.config = [[Customize hewwo.]]
 i18n.cmd.help.nick = [[Set your own nick (shared across all channels).]]
+i18n.cmd.help.join = [[Joins channel(s). The key is required for private channels.]]
 i18n.cmd.help.query = [[Send a private message to someone.]]
 i18n.cmd.help.quit = [[Leave all channels and close hewwo.]]
 i18n.cmd.help.who = [[See who's in the current channel.]]
 
 i18n.cmd.inline = {}
-i18n.cmd.inline.join = "#chan1 [#chan2...]"
+i18n.cmd.inline.join = "#chan1[,#chan2...] [key]"
 i18n.cmd.inline.config = "[edit]"

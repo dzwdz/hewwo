@@ -57,21 +57,31 @@ commands["nick"] = function(line, args)
 end
 
 commands["join"] = function(line, args)
+	args = cmd_parse(line, 2)
 	if #args == 0 then
+		-- TODO generic print_usage() command
 		print("missing argument. try /join #tildetown")
 		return
 	end
-	-- TODO check conn.active
-	for i, v in ipairs(args) do
-		irc.writecmd("JOIN", v)
-		buffers:make(v)
+	if not conn.active then
+		print("sorry, you're not connected yet.")
+		return
 	end
-	local last = args[#args]
+	-- TODO hint when user tries to join multiple buffers
+
+	local key = args[2] -- intended to be nil with no key
+	local last
+	for chan in string.gmatch(args[1], "[^,]+") do -- comma separated
+		irc.writecmd("JOIN", chan, key)
+		buffers:make(chan)
+		last = chan
+	end
 	buffers:switch(last)
 end
 -- ["j"] set in default config
 
 commands["part"] = function(line, args)
+	-- TODO inconsistent with /join
 	if #args == 0 then
 		irc.writecmd("PART", conn.chan)
 	else
