@@ -48,6 +48,7 @@ static struct {
 	char *ext_cmd;
 	pid_t ext_pid;
 	FILE *ext_pipe;
+	bool ext_tty; /* don't replace stdin with a pipe */
 } G;
 
 static const luaL_Reg capi_reg[] = {
@@ -142,7 +143,11 @@ ext_run(void)
 	linenoiseHide(&G.ls);
 
 	G.ext_cmd = NULL;
-	if (pipe(pipefd) == -1) {
+	if (G.ext_pipe) {
+		fclose(G.ext_pipe);
+		G.ext_pipe = NULL;
+	}
+	if (!G.ext_tty && pipe(pipefd) == -1) {
 		perror("pipe()");
 		return;
 	}
@@ -150,17 +155,22 @@ ext_run(void)
 	ret = fork();
 	if (ret == -1) {
 		perror("fork()");
-		close(pipefd[0]);
-		close(pipefd[1]);
+		if (!G.ext_tty) {
+			close(pipefd[0]);
+			close(pipefd[1]);
+		}
 	} else if (ret == 0) {
-		dup2(pipefd[0], STDIN_FILENO);
-		close(pipefd[1]);
+		if (!G.ext_tty) {
+			dup2(pipefd[0], STDIN_FILENO);
+			close(pipefd[1]);
+		}
 		exit(system(cmd));
 	} else {
 		G.ext_pid = ret;
-		close(pipefd[0]);
-		if (G.ext_pipe) fclose(G.ext_pipe);
-		G.ext_pipe = fdopen(pipefd[1], "a");
+		if (!G.ext_tty) {
+			close(pipefd[0]);
+			G.ext_pipe = fdopen(pipefd[1], "a");
+		}
 	}
 	free(cmd);
 }
@@ -277,6 +287,7 @@ static int
 l_ext_run(lua_State *L)
 {
 	G.ext_cmd = strdup(luaL_checkstring(L, 1));
+	G.ext_tty = lua_toboolean(L, 2);
 	return 0;
 }
 

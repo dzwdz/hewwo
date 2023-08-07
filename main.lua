@@ -50,13 +50,17 @@ function print(...)
 	end
 end
 
-function ext.run(cmdline, reason)
+function ext.run(cmdline, reason, opts)
 	if ext.running then return end
+	opts = opts or {}
+
+	-- TODO move into a separate file and put most stuff into locals
 	ext.running = true
 	ext.ringbuf = ringbuf:new(500)
-	capi.ext_run_internal(cmdline)
 	ext._pipe = false
 	ext.reason = reason
+	ext.callback = opts.callback
+	capi.ext_run_internal(cmdline, opts.tty)
 end
 
 -- true:  print()s should be passed to the external process
@@ -72,6 +76,8 @@ function cback.ext_quit()
 	for v in ext.ringbuf:iter(ext.ringbuf) do
 		capi.print_internal(table.unpack(v))
 	end
+	if ext.callback then ext.callback() end
+	ext.callback = nil
 	ext.ringbuf = nil
 	ext.reason = nil
 end

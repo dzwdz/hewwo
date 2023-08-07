@@ -368,12 +368,18 @@ commands["config"] = function(line, args)
 			if not execf([[cp "%s" "%s"]], default, path[1]) then return end
 		end
 
-		if not execf([[${EDITOR:-nano} "%s"]], path[1]) then return end
-
-		-- TODO handle errors
-		package.loaded["config"] = nil
-		require("config")
-		print("config reloaded!")
+		local editor = os.getenv("EDITOR") or "nano"
+		local cmd = string.format([[%s "%s"]], editor, path[1])
+		ext.run(cmd, "/config edit", {
+			callback = function ()
+				-- TODO hint about $EDITOR
+				-- TODO handle errors
+				package.loaded["config"] = nil
+				require("config")
+				print("config reloaded!")
+			end,
+			tty = true, -- don't override stdin
+		})
 	else
 		print("usage: /config [edit]")
 	end
