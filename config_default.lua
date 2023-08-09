@@ -12,6 +12,8 @@ config.color.clock = "38;5;8"
 config.color.in_messages = true
 if os.getenv("NO_COLOR") then config.color = {} end -- https://no-color.org
 
+config.left_margin = 8
+
 config.timefmt = "%H:%M "
 
 config.quit_msg = "oki goodnite uwu  >.<"

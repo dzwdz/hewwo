@@ -58,7 +58,7 @@ function ui.printcmd(rawline, ts, urgent_buf)
 				userpart = string.format("%4s |", "*")
 				msg = hi(from) .. " " .. msg
 			else
-				local w = 4
+				local w = config.left_margin
 				local u, l = util.visub(hi(from), 0, w)
 				if l > w then
 					userpart = string.format("%s+|", u)
