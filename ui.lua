@@ -25,6 +25,7 @@ function ui.printcmd(rawline, ts, urgent_buf)
 		local action = false
 		local private = false
 		local notice = cmd == "NOTICE"
+		local margin = config.margin
 
 		local userpart = ""
 		local msg = args[3]
@@ -57,9 +58,24 @@ function ui.printcmd(rawline, ts, urgent_buf)
 			if notice then
 				userpart = string.format("-%s:%s-", hi(from), to)
 			elseif action then
-				userpart = string.format("* %s", hi(from))
+				if not margin then
+					userpart = string.format("* %s", hi(from))
+				else
+					userpart = string.rep(" ", margin-1) .. "* |"
+					msg = hi(from) .. " " .. msg
+				end
 			else
-				userpart = string.format("<%s>", hi(from))
+				if not margin then
+					userpart = string.format("<%s>", hi(from))
+				else
+					local u, l = util.visub(hi(from), 0, margin)
+					if l > margin then -- nick clipped
+						userpart = string.format("%s+|", u)
+					else
+						local pad = string.rep(" ", margin-l)
+						userpart = string.format("%s%s |", pad, u)
+					end
+				end
 			end
 		end
 		print(prefix .. userpart .. " " .. msg)

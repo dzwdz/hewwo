@@ -18,6 +18,11 @@ config.invert_mentions = 0
 
 config.timefmt = "%H:%M "
 
+-- If nil, don't display a left margin.
+-- If it's a number, display a left margin of that size with right-adjusted
+-- nicks, similarly to the default Weechat style.
+config.margin = nil -- try 8
+
 config.quit_msg = "oki goodnite uwu  >.<"
 
 -- controls how many lines of *your* input are browseable with the up/down arrows
