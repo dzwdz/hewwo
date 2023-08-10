@@ -38,9 +38,9 @@ run_test(function(t)
 	t(cmd_parse("/q dzwdz blah blah", 2), {[0]="q", "dzwdz", "blah blah"})
 	t(cmd_parse("/q   dzwdz   blah   blah", 2), {[0]="q", "dzwdz", "blah   blah"})
 
-	t(cmd_parse("/list | less"), 
+	t(cmd_parse("/list | less"),
 		{[0]="list", "|", "less"})
-	t(cmd_parse("/list | less", nil, true), 
+	t(cmd_parse("/list | less", nil, true),
 		{[0]="list", ["pipe"]=" less"})
 end)
 
@@ -229,7 +229,7 @@ commands["help"] = function(line, args)
 				s = string.format("%s  (also %s)", s, table.concat(names, ",", 2))
 			end
 			print(s)
-			if help then 
+			if help then
 				-- TODO /help /command to view the entire help string
 				help = string.gsub(help, "\n.*", " [...]")
 				print("  "..help)

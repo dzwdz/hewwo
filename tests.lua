@@ -13,7 +13,7 @@ function deep_compare(a, b)
 			if a[k] == nil then return false end
 		end
 		return true
-	else 
+	else
 		return false
 	end
 end
