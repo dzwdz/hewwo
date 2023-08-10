@@ -12,6 +12,7 @@ local irc = safeinit(...)
 local buffers = require "buffers"
 local i18n = require "i18n"
 local ui = require "ui"
+local util = require "util"
 
 function irc.writecmd(...)
 	local cmd = ""
@@ -43,7 +44,7 @@ function irc.parsecmd(line)
 		data.prefix = string.sub(line, 2, pos-1)
 		pos = pos+1
 
-		excl = string.find(data.prefix, "!")
+		local excl = string.find(data.prefix, "!")
 		if excl then
 			data.user = string.sub(data.prefix, 1, excl-1)
 		end
@@ -106,7 +107,7 @@ function irc.newcmd(line, remote)
 					msg = args.ctcp.params or ""
 				end
 
-				if string.match(msg, nick_pattern(conn.user)) then
+				if string.match(msg, util.nick_pattern(conn.user)) then
 					buffers:push(to, line, {urgency=2})
 				elseif from == conn.user then
 					buffers:push(to, line, {urgency=1})
@@ -183,6 +184,7 @@ function irc.newcmd(line, remote)
 		ui.printcmd(line, os.time())
 		if ext.reason == "list" then ext.setpipe(false) end
 	elseif cmd == ERR_NICKNAMEINUSE then
+		local hi = ui.highlight
 		if conn.active then
 			printf("%s is taken, leaving your nick as %s", hi(args[3]), hi(conn.user))
 		else

@@ -1,10 +1,8 @@
 local util = safeinit(...)
 
-function printf(...)
-	print(string.format(...))
-end
+local tests = require "tests"
 
-function djb2(s)
+function util.djb2(s)
 	local hash = 5381|0
 	for _,c in ipairs({string.byte(s, 1, -1)}) do
 		hash = hash * 31 + c
@@ -12,40 +10,13 @@ function djb2(s)
 	return hash
 end
 
--- TODO move to ui.highlight
-function hi(s, what)
-	if not s then return "" end
-	local mods = {}
-	local colors = config.color.nicks
-	what = what or "nick"
-
-	if what == "nick" or what == "mention" then
-		-- it's a person!
-		if (colors or #colors == 0) then
-			local cid = djb2(s) % #colors
-			table.insert(mods, colors[cid+1])
-		end
-		if what == "mention" and (config.invert_mentions&1 == 1) then
-			table.insert(mods, "7")
-		end
-	else
-		-- it's a bug!
-		error(string.format("unrecognized highlight type %q", what))
-	end
-
-	if #mods == 0 then
-		return s
-	else
-		return "\x1b["..table.concat(mods, ";").."m"..s.."\x1b[m"
-	end
-end
-
-function nick_pattern(nick)
+-- for mentions
+function util.nick_pattern(nick)
 	-- TODO only works with alphanumeric nicks
 	return "%f[%w]"..nick.."%f[^%w]"
 end
 
-function file_exists(path)
+function util.file_exists(path)
 	local f = io.open(path)
 	if f then
 		f:close()
@@ -86,11 +57,52 @@ function util.visub(str, from, to)
 	end
 	return res, vlen
 end
-run_test(function(t)
+tests.run(function(t)
 	local vs = util.visub
 	t(vs("\x1b[3m12345678\x1b[m", 0, 4), "\x1b[3m1234\x1b[m")
 	t(vs("\x1b[3mąęźć\x1b[m", 0, 2), "\x1b[3mąę\x1b[m")
 	t(vs("\x1b[3ma\x1b[mb\x1b[3mc\x1b[m", 0, 2), "\x1b[3ma\x1b[mb\x1b[3m\x1b[m")
 end)
+
+-- max_args doesn't include the command itself
+-- see below for examples
+function util.parsecmd(line, max_args, pipe)
+	-- line = string.gsub(line, "^ *", "")  guaranteed to start with /
+
+	local args = {}
+	local pos = 1
+	if pipe then
+		local split = string.find(line, "|")
+		if split then
+			args.pipe = string.sub(line, split+1)
+			line = string.sub(line, 1, split-1)
+		end
+	end
+	line = string.gsub(line, " *$", "")
+	while true do
+		local ws, we = string.find(line, " +", pos)
+		if ws and (not max_args or #args < max_args) then
+			table.insert(args, string.sub(line, pos, ws-1))
+			pos = we + 1
+		else
+			table.insert(args, string.sub(line, pos))
+			break
+		end
+	end
+	args[0] = string.gsub(args[1], "^/", "")
+	table.remove(args, 1)
+	return args
+end
+tests.run(function(t)
+	t(util.parsecmd("/q dzwdz blah blah"), {[0]="q", "dzwdz", "blah", "blah"})
+	t(util.parsecmd("/q dzwdz blah blah", 2), {[0]="q", "dzwdz", "blah blah"})
+	t(util.parsecmd("/q   dzwdz   blah   blah", 2), {[0]="q", "dzwdz", "blah   blah"})
+
+	t(util.parsecmd("/list | less"),
+		{[0]="list", "|", "less"})
+	t(util.parsecmd("/list | less", nil, true),
+		{[0]="list", ["pipe"]=" less"})
+end)
+
 
 return util

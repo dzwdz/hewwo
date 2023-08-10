@@ -10,14 +10,14 @@ end
 
 
 -- "capi" is provided by C
-local tests = require "tests"
-
 local buffers = require "buffers"
 local commands = require "commands"
 local i18n = require "i18n"
 local irc = require "irc"
 local ui = require "ui"
 local util = require "util"
+
+local ringbuf = buffers.ringbuf
 -- also see eof
 
 -- for functions called by C
@@ -60,6 +60,10 @@ function print(...)
 	else
 		capi.print_internal(...)
 	end
+end
+
+function printf(...)
+	print(string.format(...))
 end
 
 function ext.run(cmdline, reason, opts)
@@ -107,7 +111,7 @@ function cback.init(...)
 	local default_name = os.getenv("USER") or "townie"
 	config.nick = config.nick or default_name -- a hack
 	conn.user = config.nick
-	printf(i18n.connecting, hi(conn.user))
+	printf(i18n.connecting, ui.highlight(conn.user))
 	irc.writecmd("USER", config.ident.username or default_name, "0", "*",
 	                 config.ident.realname or default_name)
 	irc.writecmd("NICK", conn.user)
@@ -120,7 +124,7 @@ function cback.init(...)
 		ui.printcmd(ent.line, ent.ts, ent.buf)
 	end
 	buffers.tbl[":mentions"].onswitch = function (self)
-		for k,v in pairs(buffers.tbl) do
+		for _,v in pairs(buffers.tbl) do
 			v.mentions = 0
 		end
 	end
@@ -154,7 +158,7 @@ function cback.in_user(line)
 			line = string.sub(line, 2)
 			irc.writecmd("PRIVMSG", conn.chan, line)
 		else
-			local args = cmd_parse(line)
+			local args = util.parsecmd(line)
 			local cmd = commands[string.lower(args[0])]
 			if cmd then
 				cmd(line, args)
@@ -185,7 +189,6 @@ function cback.completion(line)
 		if not src then return end
 		prefix = prefix or ""
 		suffix = suffix or " "
-		local wlen = string.len(word)
 		for k, v in pairs(src) do
 			k = prefix..k..suffix
 			if v and wlen < string.len(k) and word == string.sub(k, 1, wlen) then

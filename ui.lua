@@ -13,7 +13,9 @@ function ui.printcmd(rawline, ts, urgent_buf)
 	local from = args.user
 	local cmd = string.upper(args[1])
 	local to = args[2] -- not always valid!
+
 	local fmt = ui.ircformat
+	local hi = ui.highlight
 
 	local clock = os.date(config.timefmt, ts)
 	if config.color.clock then
@@ -32,7 +34,7 @@ function ui.printcmd(rawline, ts, urgent_buf)
 		local notice = cmd == "NOTICE"
 		local margin = config.margin
 
-		local userpart = ""
+		local userpart
 		local msg = args[3]
 
 		if string.sub(to, 1, 1) ~= "#" then
@@ -45,7 +47,7 @@ function ui.printcmd(rawline, ts, urgent_buf)
 
 		msg = fmt(msg)
 		-- highlight own nick
-		msg = string.gsub(msg, nick_pattern(conn.user), hi(conn.user, "mention"))
+		msg = string.gsub(msg, util.nick_pattern(conn.user), hi(conn.user, "mention"))
 
 		if private then
 			-- the original prefix might also include the buffer,
@@ -128,6 +130,33 @@ function ui.updateprompt()
 	local chan = conn.chan or "nowhere"
 	local unread, mentions = buffers:count_unread()
 	capi.setprompt(string.format("[%d!%d %s]: ", unread, mentions, chan))
+end
+
+function ui.highlight(s, what)
+	if not s then return "" end
+	local mods = {}
+	local colors = config.color.nicks
+	what = what or "nick"
+
+	if what == "nick" or what == "mention" then
+		-- it's a person!
+		if (colors or #colors == 0) then
+			local cid = util.djb2(s) % #colors
+			table.insert(mods, colors[cid+1])
+		end
+		if what == "mention" and (config.invert_mentions&1 == 1) then
+			table.insert(mods, "7")
+		end
+	else
+		-- it's a bug!
+		error(string.format("unrecognized highlight type %q", what))
+	end
+
+	if #mods == 0 then
+		return s
+	else
+		return "\x1b["..table.concat(mods, ";").."m"..s.."\x1b[m"
+	end
 end
 
 -- this mess isn't even correct. or at least it doesn't match up weechat's

@@ -3,48 +3,11 @@ local commands = safeinit(...)
 local buffers = require "buffers"
 local i18n = require "i18n"
 local irc = require "irc"
-
--- max_args doesn't include the command itself
--- see below for examples
-function cmd_parse(line, max_args, pipe)
-	-- line = string.gsub(line, "^ *", "")  guaranteed to start with /
-
-	local args = {}
-	local pos = 1
-	if pipe then
-		local split = string.find(line, "|")
-		if split then
-			args.pipe = string.sub(line, split+1)
-			line = string.sub(line, 1, split-1)
-		end
-	end
-	line = string.gsub(line, " *$", "")
-	while true do
-		local ws, we = string.find(line, " +", pos)
-		if ws and (not max_args or #args < max_args) then
-			table.insert(args, string.sub(line, pos, ws-1))
-			pos = we + 1
-		else
-			table.insert(args, string.sub(line, pos))
-			break
-		end
-	end
-	args[0] = string.gsub(args[1], "^/", "")
-	table.remove(args, 1)
-	return args
-end
-run_test(function(t)
-	t(cmd_parse("/q dzwdz blah blah"), {[0]="q", "dzwdz", "blah", "blah"})
-	t(cmd_parse("/q dzwdz blah blah", 2), {[0]="q", "dzwdz", "blah blah"})
-	t(cmd_parse("/q   dzwdz   blah   blah", 2), {[0]="q", "dzwdz", "blah   blah"})
-
-	t(cmd_parse("/list | less"),
-		{[0]="list", "|", "less"})
-	t(cmd_parse("/list | less", nil, true),
-		{[0]="list", ["pipe"]=" less"})
-end)
+local ui = require "ui"
+local util = require "util"
 
 commands["nick"] = function(line, args)
+	local hi = ui.highlight
 	if #args == 0 then
 		printf("your nick is %s", hi(conn.user))
 	elseif #args == 1 then
@@ -61,9 +24,8 @@ commands["nick"] = function(line, args)
 end
 
 commands["join"] = function(line, args)
-	args = cmd_parse(line, 2)
+	args = util.parsecmd(line, 2)
 	if #args == 0 then
-		-- TODO generic print_usage() command
 		print("missing argument. try /join #tildetown")
 		return
 	end
@@ -89,7 +51,7 @@ commands["part"] = function(line, args)
 	if #args == 0 then
 		irc.writecmd("PART", conn.chan)
 	else
-		for i, v in ipairs(args) do
+		for _,v in ipairs(args) do
 			irc.writecmd("PART", v)
 		end
 	end
@@ -99,7 +61,7 @@ commands["leave"] = commands["part"]
 commands["quit"] = function(line, args)
 	-- remember all caps when you spell the command's name
 	if args[0] == "QUIT" then
-		args = cmd_parse(line, 1)
+		args = util.parsecmd(line, 1)
 		irc.writecmd("QUIT", args[1] or config.quit_msg)
 		os.exit(0)
 	else
@@ -128,7 +90,7 @@ commands["close"] = function(line, args)
 end
 
 commands["msg"] = function(line, args)
-	local args = cmd_parse(line, 2)
+	local args = util.parsecmd(line, 2)
 	if #args == 2 then
 		irc.writecmd("PRIVMSG", args[1], args[2])
 		conn.pm_hint = true -- TODO move to the new hint system
@@ -144,13 +106,13 @@ commands["action"] = function(line, args)
 		print("you must enter a channel first")
 		return
 	end
-	local content = cmd_parse(line, 1)[1] or ""
+	local content = util.parsecmd(line, 1)[1] or ""
 	irc.writecmd("PRIVMSG", conn.chan, "\1ACTION "..content.."\1")
 end
 commands["me"] = commands["action"]
 
 commands["lua"] = function(line, args)
-	args = cmd_parse(line, 1)
+	args = util.parsecmd(line, 1)
 	if #args == 0 then
 		printf("try /%s 2 + 2", args[0])
 		return
@@ -164,7 +126,7 @@ commands["lua"] = function(line, args)
 		return
 	end
 	-- try wrapping in print()
-	local fn, _ = load("print("..args[1]..")", "=(user)")
+	fn = load("print("..args[1]..")", "=(user)")
 	if fn then
 		fn()
 		return
@@ -205,7 +167,7 @@ commands["help"] = function(line, args)
 			end
 			table.insert(aliases[v], "/"..k)
 		end
-		for k,v in pairs(aliases) do
+		for _,v in pairs(aliases) do
 			-- sort by length descending. the longest alias is the primary one
 			table.sort(v, function(a, b) return #a > #b end)
 			table.insert(aliases_ord, v)
@@ -266,12 +228,11 @@ commands["who"] = function(line, args)
 
 	local s = ""
 	printf("people in %s:", conn.chan)
-	for line, nick in ipairs(nicks) do
+	for _,nick in ipairs(nicks) do
 		local len = utf8.len(nick) + 4
 		local padlen = -len % 12
-		local len = len + padlen
-		nick = "[ " .. hi(nick) .. string.rep(" ", padlen) .. " ]"
-		if string.len(s) + padlen >= 80 then
+		nick = "[ " .. ui.highlight(nick) .. string.rep(" ", padlen) .. " ]"
+		if utf8.len(s) + len + padlen >= 80 then
 			print(s)
 			s = ""
 		end
@@ -320,13 +281,13 @@ commands["topic"] = function(line, args)
 	if #args == 0 then
 		irc.writecmd("TOPIC", conn.chan)
 	else
-		local topic = cmd_parse(line, 1)[1]
+		local topic = util.parsecmd(line, 1)[1]
 		irc.writecmd("TOPIC", conn.chan, topic)
 	end
 end
 
 commands["list"] = function(line, args)
-	args = cmd_parse(line, nil, true)
+	args = util.parsecmd(line, nil, true)
 	if #args ~= 0 then
 		print([[/list currently doesn't take any arguments]])
 		print([[did you maybe mean?  /list | less]])
@@ -366,7 +327,7 @@ commands["config"] = function(line, args)
 			return
 		end
 
-		if not file_exists(path[1]) then
+		if not util.file_exists(path[1]) then
 			-- yeah, yeah, this isn't portable. whatever
 			if not execf([[mkdir -p "%s"]], dir) then return end
 			if not execf([[cp "%s" "%s"]], default, path[1]) then return end
@@ -390,7 +351,7 @@ commands["config"] = function(line, args)
 end
 
 commands["raw"] = function(line, args)
-	args = cmd_parse(line, 1)
+	args = util.parsecmd(line, 1)
 	irc.writecmd(args[1])
 end
 
