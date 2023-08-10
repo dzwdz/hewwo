@@ -5,6 +5,7 @@
  */
 
 #include "hewwo.h"
+#include "linenoise/encodings/utf8.h"
 #include "linenoise/linenoise.h"
 #include "lua/lauxlib.h"
 #include "lua/lualib.h"
@@ -366,6 +367,10 @@ main(int argc, char **argv)
 	}
 	cback_arr("init", 0, argc, (const char**)argv);
 
+	linenoiseSetEncodingFunctions(
+		linenoiseUtf8PrevCharLen,
+		linenoiseUtf8NextCharLen,
+		linenoiseUtf8ReadCode);
 	linenoiseSetCompletionCallback(completion);
 	linenoiseEditStart(&G.ls, -1, -1, lsbuf, sizeof lsbuf, G.prompt);
 	G.prompt_visib = true;
