@@ -1,6 +1,6 @@
 -- not really proper i18n, this just holds some of the user visible strings
 
-i18n = {}
+local i18n = safeinit(...)
 
 i18n.hint = {}
 i18n.hint.query = [[
@@ -94,3 +94,5 @@ i18n.cmd.inline = {}
 i18n.cmd.inline.join = "#chan1[,#chan2...] [key]"
 i18n.cmd.inline.topic = "[new topic]"
 i18n.cmd.inline.config = "[edit]"
+
+return i18n

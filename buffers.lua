@@ -1,6 +1,8 @@
-buffers = {
-	tbl = {},
-}
+local buffers = safeinit(...)
+buffers.tbl = buffers.tbl or {}
+
+local i18n = require "i18n"
+local ui = require "ui"
 
 function buffers:switch(chan)
 	printf("--- switching to %s", chan)
@@ -122,6 +124,7 @@ function buffers:leave(buf, who)
 end
 
 
+-- TODO ringbuf.lua
 ringbuf = {
 	cap = 0,
 	first = 1,
@@ -168,3 +171,5 @@ function ringbuf:iter()
 		return el
 	end
 end
+
+return buffers

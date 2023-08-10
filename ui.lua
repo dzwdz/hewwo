@@ -1,4 +1,9 @@
-ui = {}
+local ui = safeinit(...)
+
+local buffers = require "buffers"
+local i18n = require "i18n"
+local irc = require "irc"
+local util = require "util"
 
 -- Prints an IRC command.
 function ui.printcmd(rawline, ts, urgent_buf)
@@ -249,3 +254,5 @@ function ui.hint(s, ...)
 		used_hints[s] = true
 	end
 end
+
+return ui

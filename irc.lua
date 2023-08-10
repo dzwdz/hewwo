@@ -1,3 +1,4 @@
+-- TODO get those out of the global scope
 RPL_LIST = "322"
 RPL_LISTEND = "323"
 RPL_TOPIC = "332"
@@ -6,7 +7,11 @@ RPL_ENDOFMOTD = "376"
 ERR_NOMOTD = "422"
 ERR_NICKNAMEINUSE = "433"
 
-irc = {}
+local irc = safeinit(...)
+
+local buffers = require "buffers"
+local i18n = require "i18n"
+local ui = require "ui"
 
 function irc.writecmd(...)
 	local cmd = ""
@@ -202,3 +207,5 @@ function irc.newcmd(line, remote)
 		end
 	end
 end
+
+return irc

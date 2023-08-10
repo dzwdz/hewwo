@@ -1,11 +1,23 @@
+-- Used for initializing packages without breaking circular dependencies.
+-- Must be called before any requires, and the argument must match what will
+-- be used for the require() calls. Passing ... works, because the first
+-- argument to a chunk is the module name, and the other arguments are ignored.
+-- See the other files for examples.
+function safeinit(name)
+	package.loaded[name] = package.loaded[name] or {}
+	return package.loaded[name]
+end
+
+
 -- "capi" is provided by C
-require "tests"
-require "util"
-require "irc"
-require "commands"
-require "buffers"
-require "i18n"
-require "ui"
+local tests = require "tests"
+
+local buffers = require "buffers"
+local commands = require "commands"
+local i18n = require "i18n"
+local irc = require "irc"
+local ui = require "ui"
+local util = require "util"
 -- also see eof
 
 -- for functions called by C
@@ -194,6 +206,8 @@ function cback.completion(line)
 	addfrom(commands, "/")
 	return tbl
 end
+
+-- TODO modularize config
 
 config = {}
 config.ident = {}

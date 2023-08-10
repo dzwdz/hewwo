@@ -36,5 +36,6 @@ config.ident.realname = nil
 config.display_ctcp = false
 
 -- command aliases
+local commands = require "commands"
 commands["b"] = commands["buffer"]
 commands["j"] = commands["join"]

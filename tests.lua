@@ -1,5 +1,6 @@
 -- functions used primarily for tests, as the filename might suggest
 
+local tests = safeinit(...)
 
 function deep_compare(a, b)
 	if a == b then
@@ -53,3 +54,5 @@ function run_test(fn)
 		end
 	end)
 end
+
+return tests

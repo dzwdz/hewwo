@@ -1,4 +1,8 @@
-commands = {}
+local commands = safeinit(...)
+
+local buffers = require "buffers"
+local i18n = require "i18n"
+local irc = require "irc"
 
 -- max_args doesn't include the command itself
 -- see below for examples
@@ -389,3 +393,5 @@ commands["raw"] = function(line, args)
 	args = cmd_parse(line, 1)
 	irc.writecmd(args[1])
 end
+
+return commands

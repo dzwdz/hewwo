@@ -1,4 +1,4 @@
-util = {}
+local util = safeinit(...)
 
 function printf(...)
 	print(string.format(...))
@@ -56,6 +56,7 @@ function file_exists(path)
 end
 
 -- Takes a character-wise substring, preserving any original formatting.
+-- TODO move to ui?
 function util.visub(str, from, to)
 	if from ~= 0 then error("unimplemented") end
 
@@ -91,3 +92,5 @@ run_test(function(t)
 	t(vs("\x1b[3mąęźć\x1b[m", 0, 2), "\x1b[3mąę\x1b[m")
 	t(vs("\x1b[3ma\x1b[mb\x1b[3mc\x1b[m", 0, 2), "\x1b[3ma\x1b[mb\x1b[3m\x1b[m")
 end)
+
+return util
