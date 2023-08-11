@@ -74,6 +74,9 @@ if you are sure you want to close the client, type "/QUIT" (all caps)]]
 i18n.nick_invalid = [[
 %s isn't a valid nick]]
 
+i18n.alias_loop = [[
+infinite alias loop detected for "/%s". check your config]]
+
 
 -- TODO add instructions on how to scroll to the wiki
 i18n.list_after = [[

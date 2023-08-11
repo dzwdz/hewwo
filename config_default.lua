@@ -36,6 +36,10 @@ config.ident.realname = nil
 config.display_ctcp = false
 
 -- command aliases
-local commands = require "commands"
-commands["b"] = commands["buffer"]
-commands["j"] = commands["join"]
+config.commands["b"] = "buffer" -- alias /b to /buffer
+config.commands["j"] = "join"
+
+-- Custom commands. This is a "power user"-only feature, and custom commands
+-- might and will break on any updates (which will happen). You're on your own
+-- here.
+config.commands["echo"] = function(line, args) print(line) end

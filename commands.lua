@@ -176,13 +176,21 @@ commands["help"] = function(line, args)
 	local what = args[1]
 	if what == "cmd" then
 		local aliases = {} -- map from function to its names
-		local aliases_ord = {} -- list of those names
 		for k,v in pairs(commands) do
 			if not aliases[v] then
 				aliases[v] = {}
 			end
 			table.insert(aliases[v], "/"..k)
 		end
+		for k,v in pairs(config.commands) do
+			if type(v) == "string" then
+				if commands[v] then -- simple alias
+					table.insert(aliases[commands[v]], "/"..k)
+				end
+			end -- don't care about custom functions
+		end
+
+		local aliases_ord = {} -- list of those names
 		for _,v in pairs(aliases) do
 			-- sort by length descending. the longest alias is the primary one
 			table.sort(v, function(a, b) return #a > #b end)

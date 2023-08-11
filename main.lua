@@ -149,11 +149,23 @@ function cback.in_user(line)
 			irc.writecmd("PRIVMSG", Gs.chan, line)
 		else
 			local args = util.parsecmd(line)
-			local cmd = commands[string.lower(args[0])]
-			if cmd then
-				cmd(line, args)
+			local cmd = string.lower(args[0])
+			local impl
+
+			impl = config.commands[cmd] or commands[cmd]
+			local i = 0
+			while type(impl) == "string" do -- resolve aliases recursively
+				impl = config.commands[impl] or commands[impl]
+				i = i + 1
+				if i >= 100 then
+					printf(i18n.alias_loop, cmd)
+					break
+				end
+			end
+			if type(impl) == "function" then
+				impl(line, args)
 			else
-				print("unknown command \"/"..args[0].."\"")
+				printf([[unknown command "/%s"]], cmd)
 			end
 		end
 	elseif Gs.chan then
@@ -205,5 +217,6 @@ end
 config = {}
 config.ident = {}
 config.color = {}
+config.commands = {}
 require "config_default"
 require "config" -- last so as to let it override stuff
