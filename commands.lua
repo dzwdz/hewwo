@@ -5,17 +5,18 @@ local i18n = require "i18n"
 local irc = require "irc"
 local ui = require "ui"
 local util = require "util"
+local Gs = require "state"
 
 commands["nick"] = function(line, args)
 	local hi = ui.highlight
 	if #args == 0 then
-		printf("your nick is %s", hi(conn.user))
+		printf("your nick is %s", hi(Gs.user))
 	elseif #args == 1 then
 		local nick = args[1]
 		-- TODO validate nick
 		irc.writecmd("NICK", nick)
-		if not conn.active then
-			conn.user = nick
+		if not Gs.active then
+			Gs.user = nick
 		end
 		printf("changing your nick to %s...", hi(nick))
 	else
@@ -29,7 +30,7 @@ commands["join"] = function(line, args)
 		print("missing argument. try /join #tildetown")
 		return
 	end
-	if not conn.active then
+	if not Gs.active then
 		print("sorry, you're not connected yet.")
 		return
 	end
@@ -49,7 +50,7 @@ end
 commands["part"] = function(line, args)
 	-- TODO inconsistent with /join
 	if #args == 0 then
-		irc.writecmd("PART", conn.chan)
+		irc.writecmd("PART", Gs.chan)
 	else
 		for _,v in ipairs(args) do
 			irc.writecmd("PART", v)
@@ -70,21 +71,21 @@ commands["quit"] = function(line, args)
 end
 
 commands["close"] = function(line, args)
-	local chan = args[1] or conn.chan
+	local chan = args[1] or Gs.chan
 
 	-- TODO special buffers should be distinguished somehow else
 	if chan and string.match(chan, "^:") then
 		printf([[buffer %s is special]], chan)
-	elseif not buffers.tbl[chan] then
+	elseif not Gs.buffers[chan] then
 		printf([[buffer %s not found]], chan)
-	elseif buffers.tbl[chan].connected then
+	elseif Gs.buffers[chan].connected then
 		printf([[buffer %s still connected]], chan)
 		printf([[try /part %s]], chan)
 	else
-		buffers.tbl[chan] = nil
+		Gs.buffers[chan] = nil
 
-		if conn.chan == chan then
-			conn.chan = nil
+		if Gs.chan == chan then
+			Gs.chan = nil
 		end
 	end
 end
@@ -93,7 +94,7 @@ commands["msg"] = function(line, args)
 	local args = util.parsecmd(line, 2)
 	if #args == 2 then
 		irc.writecmd("PRIVMSG", args[1], args[2])
-		conn.pm_hint = true -- TODO move to the new hint system
+		Gs.pm_hint = true -- TODO move to the new hint system
 	else
 		printf("usage: /%s [user] blah blah blah", args[0])
 	end
@@ -102,12 +103,12 @@ commands["q"] = commands["msg"]
 commands["query"] = commands["msg"]
 
 commands["action"] = function(line, args)
-	if not conn.chan then
+	if not Gs.chan then
 		print("you must enter a channel first")
 		return
 	end
 	local content = util.parsecmd(line, 1)[1] or ""
-	irc.writecmd("PRIVMSG", conn.chan, "\1ACTION "..content.."\1")
+	irc.writecmd("PRIVMSG", Gs.chan, "\1ACTION "..content.."\1")
 end
 commands["me"] = commands["action"]
 
@@ -137,7 +138,7 @@ end
 commands["buffers"] = function()
 	local total = 0
 	print("You're in:")
-	for k,buf in pairs(buffers.tbl) do
+	for k,buf in pairs(Gs.buffers) do
 		local s = k
 		if buf.unread > 0 then
 			s = string.format("%s, %d unread", s, buf.unread)
@@ -213,13 +214,13 @@ commands["who"] = function(line, args)
 		printf("/who doesn't support any arguments yet")
 		return
 	end
-	if not conn.chan then
+	if not Gs.chan then
 		printf("you're not in a channel yet")
 		return
 	end
 
 	local nicks = {}
-	for k, v in pairs(buffers.tbl[conn.chan].users) do
+	for k, v in pairs(Gs.buffers[Gs.chan].users) do
 		if v then
 			table.insert(nicks, k)
 		end
@@ -227,7 +228,7 @@ commands["who"] = function(line, args)
 	table.sort(nicks)
 
 	local s = ""
-	printf("people in %s:", conn.chan)
+	printf("people in %s:", Gs.chan)
 	for _,nick in ipairs(nicks) do
 		local len = utf8.len(nick) + 4
 		local padlen = -len % 12
@@ -251,13 +252,13 @@ commands["buffer"] = function(line, args)
 	end
 
 	local pattern = args[1]
-	if buffers.tbl[pattern] then
+	if Gs.buffers[pattern] then
 		buffers:switch(pattern)
-	elseif buffers.tbl["#"..pattern] then
+	elseif Gs.buffers["#"..pattern] then
 		buffers:switch("#"..pattern)
 	else
 		local matches = {}
-		for k,_ in pairs(buffers.tbl) do
+		for k,_ in pairs(Gs.buffers) do
 			if string.find(k, pattern) then
 				table.insert(matches, k)
 			end
@@ -279,10 +280,10 @@ commands["buf"] = commands["buffer"]
 
 commands["topic"] = function(line, args)
 	if #args == 0 then
-		irc.writecmd("TOPIC", conn.chan)
+		irc.writecmd("TOPIC", Gs.chan)
 	else
 		local topic = util.parsecmd(line, 1)[1]
-		irc.writecmd("TOPIC", conn.chan, topic)
+		irc.writecmd("TOPIC", Gs.chan, topic)
 	end
 end
 

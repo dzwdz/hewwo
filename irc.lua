@@ -13,6 +13,7 @@ local buffers = require "buffers"
 local i18n = require "i18n"
 local ui = require "ui"
 local util = require "util"
+local Gs = require "state"
 
 function irc.writecmd(...)
 	local cmd = ""
@@ -31,7 +32,7 @@ function irc.writecmd(...)
 		print("=>", ui.escape(cmd))
 	end
 	capi.writesock(cmd)
-	irc.newcmd(":"..conn.user.."!@ "..cmd, false)
+	irc.newcmd(":"..Gs.user.."!@ "..cmd, false)
 end
 
 function irc.parsecmd(line)
@@ -97,7 +98,7 @@ function irc.newcmd(line, remote)
 
 		if not args.ctcp or args.ctcp.cmd == "ACTION" then
 			-- TODO factor out dm checking for consistency
-			if to == conn.user then -- direct message
+			if to == Gs.user then -- direct message
 				buffers:push(from, line, {urgency=1})
 			else
 				local msg
@@ -107,9 +108,9 @@ function irc.newcmd(line, remote)
 					msg = args.ctcp.params or ""
 				end
 
-				if string.match(msg, util.nick_pattern(conn.user)) then
+				if string.match(msg, util.nick_pattern(Gs.user)) then
 					buffers:push(to, line, {urgency=2})
-				elseif from == conn.user then
+				elseif from == Gs.user then
 					buffers:push(to, line, {urgency=1})
 				else
 					buffers:push(to, line)
@@ -126,10 +127,10 @@ function irc.newcmd(line, remote)
 		end
 	elseif cmd == "JOIN" then
 		buffers:push(to, line, {urgency=-1})
-		if from == conn.user then
-			buffers.tbl[to].connected = true
+		if from == Gs.user then
+			Gs.buffers[to].connected = true
 		end
-		buffers.tbl[to].users[from] = true
+		Gs.buffers[to].users[from] = true
 	elseif cmd == "PART" then
 		buffers:push(to, line, {urgency=-1})
 		buffers:leave(to, from)
@@ -140,12 +141,12 @@ function irc.newcmd(line, remote)
 		buffers:push(from, line, {urgency=2})
 	elseif cmd == "QUIT" then
 		local display = 0
-		if from == conn.user then
+		if from == Gs.user then
 			-- print manually
 			display = -1
 			ui.printcmd(line, os.time())
 		end
-		for chan,buf in pairs(buffers.tbl) do
+		for chan,buf in pairs(Gs.buffers) do
 			if buf.users[from] then
 				buffers:push(chan, line, {display=display, urgency=-1})
 				buf.users[from] = nil
@@ -153,13 +154,13 @@ function irc.newcmd(line, remote)
 		end
 	elseif cmd == "NICK" then
 		local display = 0
-		if from == conn.user then
-			conn.user = to
+		if from == Gs.user then
+			Gs.user = to
 			-- print manually
 			display = -1
 			ui.printcmd(line, os.time())
 		end
-		for chan,buf in pairs(buffers.tbl) do
+		for chan,buf in pairs(Gs.buffers) do
 			if buf.users[from] then
 				buffers:push(chan, line, {display=display, urgency=-1})
 				buf.users[from] = nil
@@ -167,14 +168,14 @@ function irc.newcmd(line, remote)
 			end
 		end
 	elseif cmd == RPL_ENDOFMOTD or cmd == ERR_NOMOTD then
-		conn.active = true
+		Gs.active = true
 		print(i18n.connected)
 		print()
 	elseif cmd == RPL_TOPIC then
 		buffers:push(args[3], line, {urgency=-1})
 	elseif cmd == "TOPIC" then
 		local display = 0
-		if from == conn.user then display = 1 end
+		if from == Gs.user then display = 1 end
 		buffers:push(to, line, {display=display})
 	elseif cmd == RPL_LIST or cmd == RPL_LISTEND then
 		-- TODO list output should probably be pushed into a server buffer
@@ -185,13 +186,13 @@ function irc.newcmd(line, remote)
 		if ext.reason == "list" then ext.setpipe(false) end
 	elseif cmd == ERR_NICKNAMEINUSE then
 		local hi = ui.highlight
-		if conn.active then
-			printf("%s is taken, leaving your nick as %s", hi(args[3]), hi(conn.user))
+		if Gs.active then
+			printf("%s is taken, leaving your nick as %s", hi(args[3]), hi(Gs.user))
 		else
-			local new = config.nick .. conn.nick_idx
-			conn.nick_idx = conn.nick_idx + 1
-			printf("%s is taken, trying %s", hi(conn.user), hi(new))
-			conn.user = new
+			local new = config.nick .. Gs.nick_idx
+			Gs.nick_idx = Gs.nick_idx + 1
+			printf("%s is taken, trying %s", hi(Gs.user), hi(new))
+			Gs.user = new
 			irc.writecmd("NICK", new)
 		end
 	elseif string.sub(cmd, 1, 1) == "4" then
@@ -205,7 +206,7 @@ function irc.newcmd(line, remote)
 		buffers:make(to)
 		-- TODO incorrect nick parsing
 		for nick in string.gmatch(args[5], "[^ ,*?!@]+") do
-			buffers.tbl[to].users[nick] = true
+			Gs.buffers[to].users[nick] = true
 		end
 	end
 end

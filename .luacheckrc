@@ -7,7 +7,6 @@ globals = {
 	"capi",
 	"cback",
 	"config",
-	"conn",
 	"ext",
 	"print",
 	"printf",

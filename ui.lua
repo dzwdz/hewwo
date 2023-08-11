@@ -4,6 +4,7 @@ local buffers = require "buffers"
 local i18n = require "i18n"
 local irc = require "irc"
 local util = require "util"
+local Gs = require "state"
 
 -- Prints an IRC command.
 function ui.printcmd(rawline, ts, urgent_buf)
@@ -47,7 +48,7 @@ function ui.printcmd(rawline, ts, urgent_buf)
 
 		msg = fmt(msg)
 		-- highlight own nick
-		msg = string.gsub(msg, util.nick_pattern(conn.user), hi(conn.user, "mention"))
+		msg = string.gsub(msg, util.nick_pattern(Gs.user), hi(Gs.user, "mention"))
 
 		if private then
 			-- the original prefix might also include the buffer,
@@ -87,7 +88,7 @@ function ui.printcmd(rawline, ts, urgent_buf)
 		end
 		print(prefix .. userpart .. " " .. msg)
 
-		if private and not notice and from ~= conn.user then
+		if private and not notice and from ~= Gs.user then
 			ui.hint(i18n.hint.query, from)
 		end
 	elseif cmd == "JOIN" then
@@ -127,7 +128,7 @@ function ui.printcmd(rawline, ts, urgent_buf)
 end
 
 function ui.updateprompt()
-	local chan = conn.chan or "nowhere"
+	local chan = Gs.chan or "nowhere"
 	local unread, mentions = buffers:count_unread()
 	capi.setprompt(string.format("[%d!%d %s]: ", unread, mentions, chan))
 end

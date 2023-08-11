@@ -1,8 +1,8 @@
 local buffers = safeinit(...)
-buffers.tbl = buffers.tbl or {}
 
 local i18n = require "i18n"
 local ui = require "ui"
+local Gs = require "state"
 
 
 -- defining ringbuf first, as its used by buffers:make
@@ -57,11 +57,11 @@ end
 
 function buffers:switch(chan)
 	printf("--- switching to %s", chan)
-	if conn.chan then
-		ui.hint(i18n.hint.buffer, chan, conn.chan)
+	if Gs.chan then
+		ui.hint(i18n.hint.buffer, chan, Gs.chan)
 	end
-	conn.chan = chan
-	local buf = self.tbl[chan]
+	Gs.chan = chan
+	local buf = Gs.buffers[chan]
 	if buf then
 		-- TODO remember last seen message so as not to flood the terminal?
 		for ent in buf:iter() do
@@ -110,26 +110,26 @@ function buffers:push(buf, line, ent)
 	ent.ts = os.time()
 
 	self:make(buf)
-	local b = self.tbl[buf]
+	local b = Gs.buffers[buf]
 	b:push(ent)
-	if buf ~= conn.chan then
+	if buf ~= Gs.chan then
 		if urgency >= 0 then
-			self.tbl[buf].unread = self.tbl[buf].unread + 1
+			Gs.buffers[buf].unread = Gs.buffers[buf].unread + 1
 		end
 		if urgency >= 1 and not buffers:is_visible(":mentions") then
-			self.tbl[buf].mentions = self.tbl[buf].mentions + 1
+			Gs.buffers[buf].mentions = Gs.buffers[buf].mentions + 1
 		end
 	end
 	if urgency >= 2 then
 		ent.buf = buf
-		self.tbl[":mentions"]:push(ent)
+		Gs.buffers[":mentions"]:push(ent)
 	end
 
 	if display >= 0 and buffers:is_visible(buf) then
 		ui.printcmd(ent.line, ent.ts)
 	elseif display > 0 then
 		ui.printcmd(ent.line, ent.ts, buf)
-	elseif display >= 0 and urgency >= 0 and self.tbl[buf].unread == 1 then
+	elseif display >= 0 and urgency >= 0 and Gs.buffers[buf].unread == 1 then
 		-- print first new message in a previously unread buffer
 		ui.hint(i18n.hint.msg_in_unread)
 		ui.printcmd(ent.line, ent.ts, buf)
@@ -137,23 +137,23 @@ function buffers:push(buf, line, ent)
 end
 
 function buffers:is_visible(buf)
-	return buf == conn.chan
+	return buf == Gs.chan
 end
 
 function buffers:make(buf)
-	if not self.tbl[buf] then
-		self.tbl[buf] = ringbuf:new(200)
-		self.tbl[buf].connected = nil
-		self.tbl[buf].unread = 0
-		self.tbl[buf].mentions = 0
-		self.tbl[buf].users = {}
+	if not Gs.buffers[buf] then
+		Gs.buffers[buf] = ringbuf:new(200)
+		Gs.buffers[buf].connected = nil
+		Gs.buffers[buf].unread = 0
+		Gs.buffers[buf].mentions = 0
+		Gs.buffers[buf].users = {}
 	end
 end
 
 function buffers:count_unread()
 	local unread = 0
 	local mentions = 0
-	for _, buf in pairs(buffers.tbl) do
+	for _, buf in pairs(Gs.buffers) do
 		-- TODO this is inefficient
 		-- either compute another way, or call updateprompt() less
 		if buf.unread > 0 then
@@ -167,11 +167,11 @@ function buffers:count_unread()
 end
 
 function buffers:leave(buf, who)
-	if who == conn.user then
-		buffers.tbl[buf].connected = false
-		buffers.tbl[buf].users = {}
+	if who == Gs.user then
+		Gs.buffers[buf].connected = false
+		Gs.buffers[buf].users = {}
 	end
-	buffers.tbl[buf].users[who] = nil
+	Gs.buffers[buf].users[who] = nil
 end
 
 return buffers

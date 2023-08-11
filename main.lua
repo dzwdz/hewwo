@@ -16,23 +16,13 @@ local i18n = require "i18n"
 local irc = require "irc"
 local ui = require "ui"
 local util = require "util"
+local Gs = require "state"
 
 local ringbuf = buffers.ringbuf
 -- also see eof
 
 -- for functions called by C
 cback = {}
-
-conn = {
-	user = nil,
-	active = false,
-	nick_idx = 1, -- for the initial nick
-	-- i don't care if the nick gets ugly, i need to connect ASAP to prevent
-	-- the connection from dropping
-
-	chan = nil,
-}
-
 
 -- The whole external program piping shebang.
 -- Basically: if an external program is launched, print() should
@@ -110,21 +100,21 @@ function cback.init(...)
 
 	local default_name = os.getenv("USER") or "townie"
 	config.nick = config.nick or default_name -- a hack
-	conn.user = config.nick
-	printf(i18n.connecting, ui.highlight(conn.user))
+	Gs.user = config.nick
+	printf(i18n.connecting, ui.highlight(Gs.user))
 	irc.writecmd("USER", config.ident.username or default_name, "0", "*",
 	                 config.ident.realname or default_name)
-	irc.writecmd("NICK", conn.user)
+	irc.writecmd("NICK", Gs.user)
 	capi.history_resize(config.history_size)
 
-	conn.chan = nil
+	Gs.chan = nil
 
 	buffers:make(":mentions")
-	buffers.tbl[":mentions"].printcmd = function (self, ent)
+	Gs.buffers[":mentions"].printcmd = function (self, ent)
 		ui.printcmd(ent.line, ent.ts, ent.buf)
 	end
-	buffers.tbl[":mentions"].onswitch = function (self)
-		for _,v in pairs(buffers.tbl) do
+	Gs.buffers[":mentions"].onswitch = function (self)
+		for _,v in pairs(Gs.buffers) do
 			v.mentions = 0
 		end
 	end
@@ -132,7 +122,7 @@ end
 
 function cback.disconnected()
 	-- TODO do something reasonable
-	conn.active = false
+	Gs.active = false
 	print([[you got disconnected from the server :/]])
 	print([[restart hewwo with "/QUIT" to reconnect]])
 end
@@ -156,7 +146,7 @@ function cback.in_user(line)
 	if string.sub(line, 1, 1) == "/" then
 		if string.sub(line, 2, 2) == "/" then
 			line = string.sub(line, 2)
-			irc.writecmd("PRIVMSG", conn.chan, line)
+			irc.writecmd("PRIVMSG", Gs.chan, line)
 		else
 			local args = util.parsecmd(line)
 			local cmd = commands[string.lower(args[0])]
@@ -166,11 +156,11 @@ function cback.in_user(line)
 				print("unknown command \"/"..args[0].."\"")
 			end
 		end
-	elseif conn.chan then
-		if string.sub(conn.chan, 1, 1) == ":" then
-			printf(i18n.err_rochan, conn.chan)
+	elseif Gs.chan then
+		if string.sub(Gs.chan, 1, 1) == ":" then
+			printf(i18n.err_rochan, Gs.chan)
 		else
-			irc.writecmd("PRIVMSG", conn.chan, line)
+			irc.writecmd("PRIVMSG", Gs.chan, line)
 		end
 	else
 		print(i18n.err_nochan)
@@ -197,7 +187,7 @@ function cback.completion(line)
 		end
 	end
 
-	local buf = buffers.tbl[conn.chan]
+	local buf = Gs.buffers[Gs.chan]
 	if buf then
 		if word == line then
 			addfrom(buf.users, "", ": ")
@@ -205,7 +195,7 @@ function cback.completion(line)
 			addfrom(buf.users)
 		end
 	end
-	addfrom(buffers.tbl)
+	addfrom(Gs.buffers)
 	addfrom(commands, "/")
 	return tbl
 end
