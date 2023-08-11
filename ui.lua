@@ -103,13 +103,13 @@ function ui.printcmd(rawline, ts, urgent_buf)
 		printf("%s<-- %s has quit (%s)", prefix, hi(from), fmt(args[2]))
 	elseif cmd == "NICK" then
 		printf("%s%s is now known as %s", prefix, hi(from), hi(to))
-	elseif cmd == RPL_TOPIC then
+	elseif cmd == irc.RPL_TOPIC then
 		-- Sent when joining a channel
 		printf([[%s-- %s's topic is "%s"]], prefix, args[3], fmt(args[4]))
 	elseif cmd == "TOPIC" then
 		-- TODO it'd be nice to store the old topic
 		printf([[%s%s set %s's topic to "%s"]], prefix, from, to, fmt(args[3]))
-	elseif cmd == RPL_LIST then
+	elseif cmd == irc.RPL_LIST then
 		if ext.reason == "list" then
 			prefix = "" -- don't include the hour
 		end
@@ -118,7 +118,7 @@ function ui.printcmd(rawline, ts, urgent_buf)
 		else
 			printf([[%s%s, %s users]], prefix, args[3], args[4])
 		end
-	elseif cmd == RPL_LISTEND then
+	elseif cmd == irc.RPL_LISTEND then
 		printf(i18n.list_after)
 		ext.eof()
 	else

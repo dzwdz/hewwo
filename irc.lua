@@ -1,12 +1,3 @@
--- TODO get those out of the global scope
-RPL_LIST = "322"
-RPL_LISTEND = "323"
-RPL_TOPIC = "332"
-RPL_NAMREPLY = "353"
-RPL_ENDOFMOTD = "376"
-ERR_NOMOTD = "422"
-ERR_NICKNAMEINUSE = "433"
-
 local irc = safeinit(...)
 
 local Gs = require "state"
@@ -15,6 +6,14 @@ local i18n = require "i18n"
 local tests = require "tests"
 local ui = require "ui"
 local util = require "util"
+
+irc.RPL_LIST = "322"
+irc.RPL_LISTEND = "323"
+irc.RPL_TOPIC = "332"
+irc.RPL_NAMREPLY = "353"
+irc.RPL_ENDOFMOTD = "376"
+irc.ERR_NOMOTD = "422"
+irc.ERR_NICKNAMEINUSE = "433"
 
 function irc.writecmd(...)
 	local cmd = ""
@@ -167,24 +166,24 @@ function irc.newcmd(line, remote)
 				buf.users[to] = true
 			end
 		end
-	elseif cmd == RPL_ENDOFMOTD or cmd == ERR_NOMOTD then
+	elseif cmd == irc.RPL_ENDOFMOTD or cmd == irc.ERR_NOMOTD then
 		Gs.active = true
 		print(i18n.connected)
 		print()
-	elseif cmd == RPL_TOPIC then
+	elseif cmd == irc.RPL_TOPIC then
 		buffers:push(args[3], line, {urgency=-1})
 	elseif cmd == "TOPIC" then
 		local display = 0
 		if from == Gs.user then display = 1 end
 		buffers:push(to, line, {display=display})
-	elseif cmd == RPL_LIST or cmd == RPL_LISTEND then
+	elseif cmd == irc.RPL_LIST or cmd == irc.RPL_LISTEND then
 		-- TODO list output should probably be pushed into a server buffer
 		-- but switching away from the current buffer could confuse users?
 
 		if ext.reason == "list" then ext.setpipe(true) end
 		ui.printcmd(line, os.time())
 		if ext.reason == "list" then ext.setpipe(false) end
-	elseif cmd == ERR_NICKNAMEINUSE then
+	elseif cmd == irc.ERR_NICKNAMEINUSE then
 		local hi = ui.highlight
 		if Gs.active then
 			printf("%s is taken, leaving your nick as %s", hi(args[3]), hi(Gs.user))
@@ -201,7 +200,7 @@ function irc.newcmd(line, remote)
 		printf("irc error %s: %s", cmd, args[#args])
 	elseif cmd == "PING" then
 		irc.writecmd("PONG", to)
-	elseif cmd == RPL_NAMREPLY then
+	elseif cmd == irc.RPL_NAMREPLY then
 		to = args[4]
 		buffers:make(to)
 		-- TODO incorrect nick parsing
