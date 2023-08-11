@@ -9,11 +9,12 @@ ERR_NICKNAMEINUSE = "433"
 
 local irc = safeinit(...)
 
+local Gs = require "state"
 local buffers = require "buffers"
 local i18n = require "i18n"
+local tests = require "tests"
 local ui = require "ui"
 local util = require "util"
-local Gs = require "state"
 
 function irc.writecmd(...)
 	local cmd = ""
@@ -97,7 +98,6 @@ function irc.newcmd(line, remote)
 		if to == "*" then return end
 
 		if not args.ctcp or args.ctcp.cmd == "ACTION" then
-			-- TODO factor out dm checking for consistency
 			if to == Gs.user then -- direct message
 				buffers:push(from, line, {urgency=1})
 			else
@@ -210,5 +210,57 @@ function irc.newcmd(line, remote)
 		end
 	end
 end
+
+-- NOTE: for incoming data, prefer `not irc.is_channel`
+function irc.is_nick(s)
+	-- https://modern.ircdocs.horse/#clients implemented verbatim
+	-- with the exception of CHANTYPES, because taken literally, that would
+	-- imply that on some servers "#tildetown" is a nickname, and "dzwdz" is
+	-- a channel. I assume it's #&.
+	-- In Soviet Russia, #tildetown joins you!
+	if not s or s == "" then return false end
+	if string.find(s, "[ ,*?!@]") then return false end
+	if string.find(s, "^[$:#&]") then return false end
+	return true
+end
+function irc.is_channel(s)
+	-- https://modern.ircdocs.horse/#channels
+	-- ignoring CHANTYPES for the reasons mentioned in irc.is_nick
+	if not s then return false end
+	if not string.find(s, "^[&#]") then return false end
+	if string.find(s, "[ \x07,]") then return false end
+	return true
+end
+tests.run(function(t)
+	local chans = {
+		"#tildetown", "#", "##",
+	}
+	local nicks = {
+		"bx", "cymen", "dzwdz", "ixera", "juspib", "natalia",
+		"x",
+		"dzwdz[m]",
+		"a$woo",
+	}
+	local neither = {
+		"",
+		"dzwdz [m]", " dzwdz[m]",
+		"panic!atthedisco", "panic!", "!panic",
+		"$woo",
+		" #hello", "# hello", "#hello ",
+		"#a,#b",
+	}
+	for _,v in ipairs(chans) do
+		t(irc.is_nick(v), false)
+		t(irc.is_channel(v), true)
+	end
+	for _,v in ipairs(nicks) do
+		t(irc.is_nick(v), true)
+		t(irc.is_channel(v), false)
+	end
+	for _,v in ipairs(neither) do
+		t(irc.is_nick(v), false)
+		t(irc.is_channel(v), false)
+	end
+end)
 
 return irc

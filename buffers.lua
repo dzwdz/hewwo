@@ -56,6 +56,8 @@ end
 
 
 function buffers:switch(chan)
+	-- TODO add a command to redraw channel
+	if Gs.chan == chan then return end
 	printf("--- switching to %s", chan)
 	if Gs.chan then
 		ui.hint(i18n.hint.buffer, chan, Gs.chan)

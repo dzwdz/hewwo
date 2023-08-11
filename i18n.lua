@@ -17,6 +17,11 @@ i18n.hint.msg_in_unread = [[
 hint: The first message received in a buffer you've switched away from will be
       displayed, to let you know where people are currently talking.]]
 
+i18n.hint.join_syntax = [[
+hint: Did you mean to join multiple channels?
+      /join #a #b  joins #a using the channel key "#b"
+      /join #a,#b  joins #a and #b]]
+
 
 i18n.help = {}
 i18n.help.main = [[
@@ -65,6 +70,9 @@ you need to enter a channel to chat. try "/join #tildetown"]]
 
 i18n.quit_failsafe = [[
 if you are sure you want to close the client, type "/QUIT" (all caps)]]
+
+i18n.nick_invalid = [[
+%s isn't a valid nick]]
 
 
 -- TODO add instructions on how to scroll to the wiki

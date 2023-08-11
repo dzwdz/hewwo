@@ -42,13 +42,17 @@ end
 
 function tests.run(fn)
 	-- TODO gate behind config.debug or something of that sort
-	fn(function (a, b)
+	fn(function (a, b, info)
 		if not tests.deepcmp(a, b) then
 			print("An internal test failed. You probably shouldn't be seeing this. Sorry.")
 			print("-- got:")
 			print(tests.inspect(a))
 			print("-- want:")
 			print(tests.inspect(b))
+			if info then
+				print("-- info:")
+				print(info)
+			end
 			print(debug.traceback())
 			os.exit(0)
 		end

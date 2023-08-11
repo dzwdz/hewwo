@@ -38,7 +38,7 @@ function ui.printcmd(rawline, ts, urgent_buf)
 		local userpart
 		local msg = args[3]
 
-		if string.sub(to, 1, 1) ~= "#" then
+		if not irc.is_channel(to) then
 			private = true
 		end
 		if args.ctcp and args.ctcp.cmd == "ACTION" then

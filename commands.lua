@@ -13,6 +13,10 @@ commands["nick"] = function(line, args)
 		printf("your nick is %s", hi(Gs.user))
 	elseif #args == 1 then
 		local nick = args[1]
+		if not irc.is_nick(nick) then
+			printf(i18n.nick_invalid, nick)
+			return
+		end
 		-- TODO validate nick
 		irc.writecmd("NICK", nick)
 		if not Gs.active then
@@ -26,15 +30,26 @@ end
 
 commands["join"] = function(line, args)
 	args = util.parsecmd(line, 2)
-	if #args == 0 then
-		print("missing argument. try /join #tildetown")
-		return
-	end
 	if not Gs.active then
 		print("sorry, you're not connected yet.")
 		return
 	end
-	-- TODO hint when user tries to join multiple buffers
+
+	-- with no arguments, try to rejoin the open channel
+	args[1] = args[1] or Gs.chan
+	if not args[1] then
+		print("missing argument. try /join #tildetown")
+		return
+	end
+
+	if not irc.is_channel(args[1]) then
+		print([[
+/join's argument must be a channel (start with a #). try /join #tildetown]])
+		return
+	end
+	if irc.is_channel(args[2]) then
+		ui.hint(i18n.hint.join_syntax)
+	end
 
 	local key = args[2] -- intended to be nil with no key
 	local last
