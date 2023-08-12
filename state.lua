@@ -1,9 +1,8 @@
 local Gs = {}
 
-Gs.user = nil
+Gs.user = nil -- TODO rename to nick
 Gs.active = false
-Gs.nick_idx = 1
-Gs.chan = nil
+Gs.chan = nil -- TODO rename to openbuf
 Gs.buffers = {}
 Gs.used_hints = {}
 Gs.topics = {} -- map from channel to current topic

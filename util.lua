@@ -117,5 +117,26 @@ function util.config_load()
 	end
 end
 
+-- increment a number at the end of a nick. used when first joining the server
+-- to find a free nick before timing out
+function util.nicksucc(s)
+	local match
+	s, match = string.gsub(s, "%d+$", function(s)
+		return tostring(tonumber(s, 10) + 1)
+	end)
+	if match == 1 then
+		return s
+	else
+		return s.."1"
+	end
+end
+tests.run(function(t)
+	local ns = util.nicksucc
+	t(ns("dzwdz"), "dzwdz1")
+	t(ns("dzwdz1"), "dzwdz2")
+	t(ns("dzwdz2"), "dzwdz3")
+	t(ns("dzwdz9"), "dzwdz10")
+	t(ns("dzwdz10"), "dzwdz11")
+end)
 
 return util

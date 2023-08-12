@@ -101,12 +101,10 @@ function cback.init(...)
 		os.exit(1)
 	end
 
-	local default_name = os.getenv("USER") or "townie"
-	config.nick = config.nick or default_name -- a hack
-	Gs.user = config.nick
+	Gs.user = config.nick or os.getenv("USER") or "someone"
 	printf(i18n.connecting, ui.highlight(Gs.user))
-	irc.writecmd("USER", config.ident.username or default_name, "0", "*",
-	                 config.ident.realname or default_name)
+	irc.writecmd("USER", config.ident.username or Gs.user, "0", "*",
+	                     config.ident.realname or Gs.user)
 	irc.writecmd("NICK", Gs.user)
 	capi.history_resize(config.input_history)
 

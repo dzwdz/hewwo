@@ -184,8 +184,7 @@ function irc.newcmd(line, remote)
 		if Gs.active then
 			printf("%s is taken, leaving your nick as %s", hi(args[3]), hi(Gs.user))
 		else
-			local new = config.nick .. Gs.nick_idx
-			Gs.nick_idx = Gs.nick_idx + 1
+			local new = util.nicksucc(Gs.user)
 			printf("%s is taken, trying %s", hi(Gs.user), hi(new))
 			Gs.user = new
 			irc.writecmd("NICK", new)
