@@ -22,6 +22,9 @@ hint: Did you mean to join multiple channels?
       /join #a #b  joins #a using the channel key "#b"
       /join #a,#b  joins #a and #b]]
 
+i18n.hint.editor = [[
+hint: if you prefer another editor, try setting the EDITOR environment variable]]
+
 
 i18n.help = {}
 i18n.help.main = [[
@@ -85,7 +88,6 @@ i18n.alias_loop = [[
 infinite alias loop detected for "/%s". check your config]]
 
 
--- TODO add instructions on how to scroll to the wiki
 i18n.list_after = [[
 
 those are all the channels on this server. hopefully that wasn't too

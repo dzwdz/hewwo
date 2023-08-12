@@ -144,4 +144,8 @@ function buffers:leave(buf, who)
 	Gs.buffers[buf].users[who] = nil
 end
 
+function buffers:is_special(name)
+	return Gs.buffers[name] and string.match(name, "^:")
+end
+
 return buffers

@@ -17,7 +17,6 @@ commands["nick"] = function(line, args)
 			printf(i18n.nick_invalid, nick)
 			return
 		end
-		-- TODO validate nick
 		irc.writecmd("NICK", nick)
 		if not Gs.active then
 			Gs.user = nick
@@ -63,7 +62,7 @@ end
 -- ["j"] set in default config
 
 commands["part"] = function(line, args)
-	-- TODO inconsistent with /join
+	-- TODO /part is inconsistent with /join
 	if #args == 0 then
 		irc.writecmd("PART", Gs.chan)
 	else
@@ -88,8 +87,7 @@ end
 commands["close"] = function(line, args)
 	local chan = args[1] or Gs.chan
 
-	-- TODO special buffers should be distinguished somehow else
-	if chan and string.match(chan, "^:") then
+	if buffers:is_special(chan) then
 		printf([[buffer %s is special]], chan)
 	elseif not Gs.buffers[chan] then
 		printf([[buffer %s not found]], chan)
@@ -109,7 +107,7 @@ commands["msg"] = function(line, args)
 	local args = util.parsecmd(line, 2)
 	if #args == 2 then
 		irc.writecmd("PRIVMSG", args[1], args[2])
-		Gs.pm_hint = true -- TODO move to the new hint system
+		ui.hint_silence(i18n.hint.query)
 	else
 		printf("usage: /%s [user] blah blah blah", args[0])
 	end
@@ -361,8 +359,10 @@ commands["config"] = function(line, args)
 		local cmd = string.format([[%s "%s"]], editor, path[1])
 		ext.run(cmd, "/config edit", {
 			callback = function ()
-				-- TODO hint about $EDITOR
 				util.config_load()
+				if not os.getenv("EDITOR") then
+					ui.hint(i18n.hint.editor)
+				end
 				print("config reloaded!")
 			end,
 			tty = true, -- don't override stdin

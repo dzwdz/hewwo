@@ -16,18 +16,12 @@ irc.ERR_NOMOTD = "422"
 irc.ERR_NICKNAMEINUSE = "433"
 
 function irc.writecmd(...)
-	local cmd = ""
-	-- TODO enforce no spaces
-	for i, v in ipairs({...}) do
-		if i ~= 1 then
-			cmd = cmd .. " "
-			if i == #{...} then
-				cmd = cmd .. ":"
-			end
-		end
-		cmd = cmd .. v
+	local args = {...}
+	if #args >= 2 then
+		args[#args] = ":" .. args[#args]
 	end
 
+	local cmd = table.concat(args, " ")
 	if config.debug then
 		print("=>", ui.escape(cmd))
 	end
@@ -171,11 +165,13 @@ function irc.newcmd(line, remote)
 		print(i18n.connected)
 		print()
 	elseif cmd == irc.RPL_TOPIC then
+		Gs.topics[args[3]] = args[4]
 		buffers:push(args[3], line, {urgency=-1})
 	elseif cmd == "TOPIC" then
 		local display = 0
 		if from == Gs.user then display = 1 end
-		buffers:push(to, line, {display=display})
+		buffers:push(to, line, {display=display, oldtopic=Gs.topics[to]})
+		Gs.topics[to] = args[3]
 	elseif cmd == irc.RPL_LIST or cmd == irc.RPL_LISTEND then
 		-- TODO list output should probably be pushed into a server buffer
 		-- but switching away from the current buffer could confuse users?

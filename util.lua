@@ -28,35 +28,31 @@ function util.file_exists(path)
 end
 
 -- Takes a character-wise substring, preserving any original formatting.
--- TODO move to ui?
 function util.visub(str, from, to)
 	if from ~= 0 then error("unimplemented") end
 
 	local i = 1
 	local len = string.len(str)
-	local res = ""
-	-- TODO table.concat could be better for performance here
+	local res = {} -- table.concat is supposedly the best way to build strings
 	local vlen = 0
 	local utf8p = "("..utf8.charpattern..")"
 	while i <= len do
-		-- TODO factor out the escape code pattern into a global
-		-- it's also used by ui.strip_ansi
 		local a, b, match = string.find(str, "^(\x1b%[[^\x40-\x7E]*[\x40-\x7E])", i)
 		if a then
 			i = b+1
-			res = res..match
+			table.insert(res, match)
 		else
 			a, b, match = string.find(str, utf8p, i)
 			if not a then break end
 			-- if a ~= i, whatever, pretend everything is fine anyways
 			i = b+1
 			if vlen < to then
-				res = res..match
+				table.insert(res, match)
 			end
 			vlen = vlen + 1
 		end
 	end
-	return res, vlen
+	return table.concat(res), vlen
 end
 tests.run(function(t)
 	local vs = util.visub

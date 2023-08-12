@@ -114,8 +114,14 @@ function ui.printcmd(ent, urgent_buf)
 		-- Sent when joining a channel
 		printf([[%s-- %s's topic is "%s"]], prefix, args[3], fmt(args[4]))
 	elseif cmd == "TOPIC" then
-		-- TODO it'd be nice to store the old topic
-		printf([[%s%s set %s's topic to "%s"]], prefix, from, to, fmt(args[3]))
+		printf(
+			[[%s%s changed %s's topic from "%s" to "%s"]],
+			prefix,
+			hi(from),
+			to,
+			ent.oldtopic or "",
+			fmt(args[3])
+		)
 	elseif cmd == irc.RPL_LIST then
 		if ext.reason == "list" then
 			prefix = "" -- don't include the hour
@@ -129,7 +135,6 @@ function ui.printcmd(ent, urgent_buf)
 		printf(i18n.list_after)
 		ext.eof()
 	else
-		-- TODO config.debug levels
 		printf([[error in hewwo: printcmd can't handle "%s"]], cmd)
 	end
 end
@@ -289,12 +294,15 @@ function ui.strip_ansi(s)
 	return string.gsub(s, "\x1b%[[^\x40-\x7E]*[\x40-\x7E]", "")
 end
 
-local used_hints = {}
 function ui.hint(s, ...)
-	if not used_hints[s] then
+	if not Gs.used_hints[s] then
 		printf(s, ...)
-		used_hints[s] = true
+		Gs.used_hints[s] = true
 	end
+end
+
+function ui.hint_silence(s)
+	Gs.used_hints[s] = true
 end
 
 return ui
