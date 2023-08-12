@@ -7,7 +7,11 @@ local util = require "util"
 local Gs = require "state"
 
 -- Prints an IRC command.
-function ui.printcmd(rawline, ts, urgent_buf)
+function ui.printcmd(ent, urgent_buf)
+	-- compat with the old arguments
+	local rawline = ent.line
+	local ts = ent.ts
+
 	-- TODO pass the raw stored message object, so we know if it was urgent
 	-- e.g. for highlighting the sender's nick in PRIVMSG
 	local args = irc.parsecmd(rawline)
@@ -48,7 +52,7 @@ function ui.printcmd(rawline, ts, urgent_buf)
 
 		msg = fmt(msg)
 		-- highlight own nick
-		msg = string.gsub(msg, util.nick_pattern(Gs.user), hi(Gs.user, "mention"))
+		msg = string.gsub(msg, util.nick_pattern(Gs.user), hi(Gs.user, "mention1"))
 
 		if private then
 			-- the original prefix might also include the buffer,
@@ -63,20 +67,25 @@ function ui.printcmd(rawline, ts, urgent_buf)
 				userpart = string.format("[%s -> %s]", hi(from), hi(to))
 			end
 		else
+			local style = "nick" -- how to render the sender's nick
+			if (ent.urgency or 0) >= 1 then
+				style = "mention2"
+			end
+
 			if notice then
-				userpart = string.format("-%s:%s-", hi(from), to)
+				userpart = string.format("-%s:%s-", hi(from, style), to)
 			elseif action then
 				if not margin then
-					userpart = string.format("* %s", hi(from))
+					userpart = string.format("* %s", hi(from, style))
 				else
 					userpart = string.rep(" ", margin-1) .. "* |"
 					msg = hi(from) .. " " .. msg
 				end
 			else
 				if not margin then
-					userpart = string.format("<%s>", hi(from))
+					userpart = string.format("<%s>", hi(from, style))
 				else
-					local u, l = util.visub(hi(from), 0, margin)
+					local u, l = util.visub(hi(from, style), 0, margin)
 					if l > margin then -- nick clipped
 						userpart = string.format("%s+|", u)
 					else
@@ -139,13 +148,18 @@ function ui.highlight(s, what)
 	local colors = config.color.nicks
 	what = what or "nick"
 
-	if what == "nick" or what == "mention" then
+	if what == "nick" or what == "mention1" or what == "mention2" then
 		-- it's a person!
 		if (colors or #colors == 0) then
 			local cid = util.djb2(s) % #colors
 			table.insert(mods, colors[cid+1])
 		end
-		if what == "mention" and (config.invert_mentions&1 == 1) then
+		if what == "mention1" and (config.invert_mentions&1 == 1) then
+			-- mention in the middle of a message
+			table.insert(mods, "7")
+		end
+		if what == "mention2" and (config.invert_mentions&2 == 2) then
+			-- the nick of the sender
 			table.insert(mods, "7")
 		end
 	else

@@ -111,7 +111,7 @@ function cback.init(...)
 
 	buffers:make(":mentions")
 	Gs.buffers[":mentions"].printcmd = function (self, ent)
-		ui.printcmd(ent.line, ent.ts, ent.buf)
+		ui.printcmd(ent, ent.buf)
 	end
 	Gs.buffers[":mentions"].onswitch = function (self)
 		for _,v in pairs(Gs.buffers) do

@@ -143,7 +143,7 @@ function irc.newcmd(line, remote)
 		if from == Gs.user then
 			-- print manually
 			display = -1
-			ui.printcmd(line, os.time())
+			ui.printcmd({line=line, ts=os.time()})
 		end
 		for chan,buf in pairs(Gs.buffers) do
 			if buf.users[from] then
@@ -157,7 +157,7 @@ function irc.newcmd(line, remote)
 			Gs.user = to
 			-- print manually
 			display = -1
-			ui.printcmd(line, os.time())
+			ui.printcmd({line=line, ts=os.time()})
 		end
 		for chan,buf in pairs(Gs.buffers) do
 			if buf.users[from] then
@@ -181,7 +181,7 @@ function irc.newcmd(line, remote)
 		-- but switching away from the current buffer could confuse users?
 
 		if ext.reason == "list" then ext.setpipe(true) end
-		ui.printcmd(line, os.time())
+		ui.printcmd({line=line, ts=os.time()})
 		if ext.reason == "list" then ext.setpipe(false) end
 	elseif cmd == irc.ERR_NICKNAMEINUSE then
 		local hi = ui.highlight

@@ -68,11 +68,11 @@ function buffers:switch(chan)
 		-- TODO remember last seen message so as not to flood the terminal?
 		for ent in buf:iter() do
 			if buf.printcmd then
-				-- TODO this is the only place where buf:printcmd is respected
+				-- XXX this is the only place where buf:printcmd is respected
 				-- currently this is fine, but broadly it isn't
 				buf:printcmd(ent)
 			else
-				ui.printcmd(ent.line, ent.ts)
+				ui.printcmd(ent)
 			end
 		end
 		buf.unread = 0
@@ -128,13 +128,13 @@ function buffers:push(buf, line, ent)
 	end
 
 	if display >= 0 and buffers:is_visible(buf) then
-		ui.printcmd(ent.line, ent.ts)
+		ui.printcmd(ent)
 	elseif display > 0 then
-		ui.printcmd(ent.line, ent.ts, buf)
+		ui.printcmd(ent)
 	elseif display >= 0 and urgency >= 0 and Gs.buffers[buf].unread == 1 then
 		-- print first new message in a previously unread buffer
 		ui.hint(i18n.hint.msg_in_unread)
-		ui.printcmd(ent.line, ent.ts, buf)
+		ui.printcmd(ent, buf)
 	end
 end
 
