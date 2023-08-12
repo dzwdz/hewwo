@@ -7,6 +7,7 @@ local tests = require "tests"
 local ui = require "ui"
 local util = require "util"
 
+irc.RPL_ISUPPORT = "005"
 irc.RPL_LIST = "322"
 irc.RPL_LISTEND = "323"
 irc.RPL_TOPIC = "332"
@@ -87,8 +88,10 @@ function irc.newcmd(line, remote)
 	end
 
 	if cmd == "PRIVMSG" or cmd == "NOTICE" then
-		-- TODO strip first `to` character for e.g. +#tildetown
 		if to == "*" then return end
+		if string.match(to, Gs.prefix_pat) then
+			to = string.sub(to, 2)
+		end
 
 		if not args.ctcp or args.ctcp.cmd == "ACTION" then
 			if to == Gs.user then -- direct message
@@ -160,6 +163,20 @@ function irc.newcmd(line, remote)
 				buf.users[to] = true
 			end
 		end
+	elseif cmd == irc.RPL_ISUPPORT then
+		for i=3,(#args-1) do
+			local token = args[i]
+			local minus = string.match(token, "^-")
+			local key = string.match(token, "^-?(%w+)")
+			local value = string.match(token, "=(.*)") or true
+			-- for now i don't support escapes, they're not used on town anyways
+			if minus then value = nil end
+			Gs.ISUPPORT[key] = value
+			if key == "PREFIX" then
+				local prefixes = string.match(value, "%)(.*)") or "@"
+				Gs.prefix_pat = "^["..util.patescape(prefixes).."]"
+			end
+		end
 	elseif cmd == irc.RPL_ENDOFMOTD or cmd == irc.ERR_NOMOTD then
 		Gs.active = true
 		print(i18n.connected)
@@ -198,8 +215,10 @@ function irc.newcmd(line, remote)
 	elseif cmd == irc.RPL_NAMREPLY then
 		to = args[4]
 		buffers:make(to)
-		-- TODO incorrect nick parsing
-		for nick in string.gmatch(args[5], "[^ ,*?!@]+") do
+		for nick in string.gmatch(args[5], "[^ ]+") do
+			if string.match(nick, Gs.prefix_pat) then
+				nick = string.sub(nick, 2)
+			end
 			Gs.buffers[to].users[nick] = true
 		end
 	end

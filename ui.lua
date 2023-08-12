@@ -95,7 +95,11 @@ function ui.printcmd(ent, urgent_buf)
 		end
 		print(prefix .. userpart .. " " .. msg)
 
-		if private and not notice and from ~= Gs.user then
+		if private
+		and not notice
+		and from ~= Gs.user
+		and not string.match(to, Gs.prefix_pat)
+		then
 			ui.hint(i18n.hint.query, from)
 		end
 	elseif cmd == "JOIN" then

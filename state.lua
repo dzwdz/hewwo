@@ -7,4 +7,7 @@ Gs.buffers = {}
 Gs.used_hints = {}
 Gs.topics = {} -- map from channel to current topic
 
+Gs.ISUPPORT = {}
+Gs.prefix_pat = "^[@]"
+
 return Gs

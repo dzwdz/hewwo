@@ -139,4 +139,14 @@ tests.run(function(t)
 	t(ns("dzwdz10"), "dzwdz11")
 end)
 
+function util.patescape(s)
+	return string.gsub(s, "[%^%$%(%)%%%.%[%]%*%+%-%?]", function(s)
+		return "%"..s
+	end)
+end
+tests.run(function(t)
+	t(util.patescape("^$()%.[]*+-?"), "%^%$%(%)%%%.%[%]%*%+%-%?")
+	t(util.patescape("oh?"), "oh%?")
+end)
+
 return util
