@@ -110,7 +110,7 @@ function irc.newcmd(line, remote)
 				if string.match(msg, util.nick_pattern(Gs.user)) then
 					buffers:push(to, line, {urgency=2})
 				elseif from == Gs.user then
-					buffers:push(to, line, {urgency=1})
+					buffers:push(to, line, {display=1})
 				else
 					buffers:push(to, line)
 				end
