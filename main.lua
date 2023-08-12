@@ -11,6 +11,7 @@ end
 
 -- "capi" is provided by C
 local Gs = require "state"
+local argv = require "argv"
 local buffers = require "buffers"
 local commands = require "commands"
 local i18n = require "i18n"
@@ -93,15 +94,16 @@ end
 function cback.init(...)
 	util.config_load()
 
-	local argv = {...}
-	local host = argv[2] or "localhost"
-	local port = argv[3] or "6667"
+	local opts = argv.parse{...}
+
+	local host = opts.host or config.host
+	local port = opts.port or config.port
+	Gs.user = opts.nick or config.nick or "nil"
 	if not capi.dial(host, port) then
 		printf("couldn't connect to %s:%s :(", host, port)
 		os.exit(1)
 	end
 
-	Gs.user = config.nick or os.getenv("USER") or "someone"
 	printf(i18n.connecting, ui.highlight(Gs.user))
 	irc.writecmd("USER", config.ident.username or Gs.user, "0", "*",
 	                     config.ident.realname or Gs.user)

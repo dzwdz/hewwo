@@ -97,6 +97,10 @@ if you can't, you can either:
 2. try using tmux: https://tilde.town/wiki/learn/tmux.html
 ]]
 
+i18n.cli_usage = [[
+usage: hewwo [-c host] [-p port] [-n nick]
+]]
+
 i18n.cmd = {}
 i18n.cmd.help = {}
 i18n.cmd.help.action = [[Send a roleplay message, e.g. "/me jumps into hyperspace".]]
