@@ -10,15 +10,14 @@ end
 
 
 -- "capi" is provided by C
+local Gs = require "state"
 local buffers = require "buffers"
 local commands = require "commands"
 local i18n = require "i18n"
 local irc = require "irc"
+local ringbuf = require "ringbuf"
 local ui = require "ui"
 local util = require "util"
-local Gs = require "state"
-
-local ringbuf = buffers.ringbuf
 -- also see eof
 
 -- for functions called by C
@@ -62,7 +61,7 @@ function ext.run(cmdline, reason, opts)
 
 	-- TODO move into a separate file and put most stuff into locals
 	ext.running = true
-	ext.ringbuf = ringbuf:new(500)
+	ext.ringbuf = ringbuf:new(1000)
 	ext._pipe = false
 	ext.reason = reason
 	ext.callback = opts.callback
@@ -77,10 +76,12 @@ end
 
 function cback.ext_quit()
 	ext.running = false
-	-- TODO notify the user if the ringbuf overflowed
-	capi.print_internal("printing the messages you've missed...")
+	print("printing the messages you've missed...")
+	if ext.ringbuf:full() then
+		print("note: some older messages were dropped, so this isn't a complete list")
+	end
 	for v in ext.ringbuf:iter(ext.ringbuf) do
-		capi.print_internal(table.unpack(v))
+		print(table.unpack(v))
 	end
 	if ext.callback then ext.callback() end
 	ext.callback = nil
