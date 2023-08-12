@@ -1,5 +1,6 @@
 local util = safeinit(...)
 
+local i18n = require "i18n"
 local tests = require "tests"
 
 function util.djb2(s)
@@ -103,6 +104,22 @@ tests.run(function(t)
 	t(util.parsecmd("/list | less", nil, true),
 		{[0]="list", ["pipe"]=" less"})
 end)
+
+function util.config_load()
+	package.loaded.config = nil
+	package.loaded.config_default = nil
+
+	config = {}
+	config.ident = {}
+	config.color = {}
+	config.commands = {}
+	require "config_default"
+	local succ, res = xpcall(require, debug.traceback, "config")
+	if not succ then
+		print(res)
+		print(i18n.err_config)
+	end
+end
 
 
 return util

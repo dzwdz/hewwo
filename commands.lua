@@ -331,7 +331,7 @@ commands["config"] = function(line, args)
 	end
 
 	local path = {}
-	for p in string.gmatch(package.path, "[^;]+%?.lua") do
+	for p in string.gmatch(package.path, "[^;]+%?[^;]+") do
 		p = string.gsub(p, "?", "config")
 		table.insert(path, p)
 	end
@@ -343,7 +343,7 @@ commands["config"] = function(line, args)
 			printf("%d. %s", k, v)
 		end
 		printf("The default config is at %s", default)
-		printf("Also, try \"/config edit\".\n")
+		printf("Try \"/config edit\".\n")
 	elseif args[1] == "edit" then
 		local dir, s = string.gsub(path[1], "/config.lua$", "")
 		if s ~= 1 then
@@ -362,9 +362,7 @@ commands["config"] = function(line, args)
 		ext.run(cmd, "/config edit", {
 			callback = function ()
 				-- TODO hint about $EDITOR
-				-- TODO handle errors
-				package.loaded["config"] = nil
-				require("config")
+				util.config_load()
 				print("config reloaded!")
 			end,
 			tty = true, -- don't override stdin

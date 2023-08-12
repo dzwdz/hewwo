@@ -90,6 +90,8 @@ end
 
 
 function cback.init(...)
+	util.config_load()
+
 	local argv = {...}
 	local host = argv[2] or "localhost"
 	local port = argv[3] or "6667"
@@ -211,12 +213,3 @@ function cback.completion(line)
 	addfrom(commands, "/")
 	return tbl
 end
-
--- TODO modularize config
-
-config = {}
-config.ident = {}
-config.color = {}
-config.commands = {}
-require "config_default"
-require "config" -- last so as to let it override stuff

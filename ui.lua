@@ -12,8 +12,6 @@ function ui.printcmd(ent, urgent_buf)
 	local rawline = ent.line
 	local ts = ent.ts
 
-	-- TODO pass the raw stored message object, so we know if it was urgent
-	-- e.g. for highlighting the sender's nick in PRIVMSG
 	local args = irc.parsecmd(rawline)
 	local from = args.user
 	local cmd = string.upper(args[1])
@@ -150,7 +148,7 @@ function ui.highlight(s, what)
 
 	if what == "nick" or what == "mention1" or what == "mention2" then
 		-- it's a person!
-		if (colors or #colors == 0) then
+		if colors and #colors > 0 then
 			local cid = util.djb2(s) % #colors
 			table.insert(mods, colors[cid+1])
 		end
@@ -238,7 +236,7 @@ function ui.ircformat(s)
 
 	local bold, italic, underline, reverse
 
-	s = string.gsub(s, "[\x00-\x1F\x7F]", function (c)
+	s = string.gsub(s or "", "[\x00-\x1F\x7F]", function (c)
 		local r -- replacement
 
 		if c == "\x02" then

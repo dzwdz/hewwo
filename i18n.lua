@@ -68,6 +68,13 @@ try "/join #tildetown", or "/help buffers"
 i18n.err_nochan = [[
 you need to enter a channel to chat. try "/join #tildetown"]]
 
+i18n.err_config = [[
+
+!!! There's an error somewhere in your config !!!
+The default config was loaded as a fallback for now.
+Please use  /config edit  to fix it.
+]]
+
 i18n.quit_failsafe = [[
 if you are sure you want to close the client, type "/QUIT" (all caps)]]
 
