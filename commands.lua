@@ -377,4 +377,35 @@ commands["raw"] = function(line, args)
 	irc.writecmd(args[1])
 end
 
+commands["history"] = function(line, args)
+	local buf, amt
+	buf = Gs.chan
+	if #args >= 3 then
+		-- TODO generic usage command
+		print("too many arguments")
+	end
+	if args[1] then
+		if Gs.buffers[args[1]] then
+			buf = args[1]
+		elseif #args == 1 then
+			amt = tonumber(args[1])
+			if not amt then
+				printf("\"%s\" is neither a buffer or a number", args[1])
+				return
+			end
+		else
+			printf("\"%s\" is not a valid buffer", args[1])
+			return
+		end
+	end
+	if args[2] then
+		amt = tonumber(args[2])
+		if not amt then
+			printf("\"%s\" is not a number", args[2])
+			return
+		end
+	end
+	buffers:print(buf, amt)
+end
+
 return commands

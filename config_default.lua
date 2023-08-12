@@ -24,8 +24,12 @@ config.margin = nil -- try 8
 
 config.quit_msg = "oki goodnite uwu  >.<"
 
--- controls how many lines of *your* input are browseable with the up/down arrows
-config.history_size = 50
+-- how many lines of *your* input are browseable with the up/down arrows
+config.input_history = 50
+-- how many messages can be stored in a single buffer?
+config.buffer_history = 300
+-- how much of the history should be printed when switching buffers?
+config.switch_history = 50
 
 -- /whois data
 config.ident.username = nil -- autodetect

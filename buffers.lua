@@ -6,7 +6,6 @@ local ringbuf = require "ringbuf"
 local ui = require "ui"
 
 function buffers:switch(chan)
-	-- TODO add a command to redraw channel
 	if Gs.chan == chan then return end
 	printf("--- switching to %s", chan)
 	if Gs.chan then
@@ -15,22 +14,12 @@ function buffers:switch(chan)
 	Gs.chan = chan
 	local buf = Gs.buffers[chan]
 	if buf then
-		-- TODO remember last seen message so as not to flood the terminal?
-		for ent in buf:iter() do
-			if buf.printcmd then
-				-- XXX this is the only place where buf:printcmd is respected
-				-- currently this is fine, but broadly it isn't
-				buf:printcmd(ent)
-			else
-				ui.printcmd(ent)
-			end
-		end
+		buffers:print(chan, config.switch_history)
 		buf.unread = 0
 		buf.mentions = 0
 		if buf.onswitch then buf:onswitch() end
 	else
-		-- TODO error out
-		print("-- (creating buffer)")
+		print("-- (new buffer)")
 	end
 end
 
@@ -94,11 +83,40 @@ end
 
 function buffers:make(buf)
 	if not Gs.buffers[buf] then
-		Gs.buffers[buf] = ringbuf:new(200)
+		Gs.buffers[buf] = ringbuf:new(config.buffer_history)
 		Gs.buffers[buf].connected = nil
 		Gs.buffers[buf].unread = 0
 		Gs.buffers[buf].mentions = 0
 		Gs.buffers[buf].users = {}
+	end
+end
+
+function buffers:print(name, count)
+	local buf = Gs.buffers[name]
+	if not buf then return end
+
+	-- TODO refactor ringbuf, add ringbuf:iter(-50)
+	local t = {}
+	for ent in buf:iter() do
+		table.insert(t, ent)
+	end
+
+	if count and count < #t then
+		printf("-- printing only %d/%d messages. to see the rest, /history %s", count, #t, name)
+	end
+	for k,ent in ipairs(t) do
+		-- if #t == 50, and count == 2, the first printed index is 49
+		-- 49 <= 50 - 2  false
+		-- 48 <= 50 - 2  true
+		if not (count and k <= #t - count) then
+			if buf.printcmd then
+				-- XXX this is the only place where buf:printcmd is respected
+				-- currently this is fine, but broadly it isn't
+				buf:printcmd(ent)
+			else
+				ui.printcmd(ent)
+			end
+		end
 	end
 end
 

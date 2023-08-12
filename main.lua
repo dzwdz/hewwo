@@ -108,7 +108,7 @@ function cback.init(...)
 	irc.writecmd("USER", config.ident.username or default_name, "0", "*",
 	                 config.ident.realname or default_name)
 	irc.writecmd("NICK", Gs.user)
-	capi.history_resize(config.history_size)
+	capi.history_resize(config.input_history)
 
 	Gs.chan = nil
 
