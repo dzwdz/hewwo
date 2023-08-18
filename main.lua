@@ -151,25 +151,7 @@ function cback.in_user(line)
 			line = string.sub(line, 2)
 			irc.writecmd("PRIVMSG", Gs.chan, line)
 		else
-			local args = util.parsecmd(line)
-			local cmd = string.lower(args[0])
-			local impl
-
-			impl = config.commands[cmd] or commands[cmd]
-			local i = 0
-			while type(impl) == "string" do -- resolve aliases recursively
-				impl = config.commands[impl] or commands[impl]
-				i = i + 1
-				if i >= 100 then
-					printf(i18n.alias_loop, cmd)
-					break
-				end
-			end
-			if type(impl) == "function" then
-				impl(line, args)
-			else
-				printf([[unknown command "/%s"]], cmd)
-			end
+			commands.run(line)
 		end
 	elseif Gs.chan then
 		if string.sub(Gs.chan, 1, 1) == ":" then
@@ -211,6 +193,6 @@ function cback.completion(line)
 		end
 	end
 	addfrom(Gs.buffers)
-	addfrom(commands, "/")
+	addfrom(commands.tbl, "/")
 	return tbl
 end

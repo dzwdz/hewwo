@@ -7,7 +7,40 @@ local ui = require "ui"
 local util = require "util"
 local Gs = require "state"
 
-commands["nick"] = function(line, args)
+commands.tbl = commands.tbl or {}
+local tbl = commands.tbl
+
+function commands.run(line)
+	local args = util.parsecmd(line)
+	local cmd = string.lower(args[0])
+	local impl
+
+	impl = config.commands[cmd] or commands.tbl[cmd]
+	local i = 0
+	while type(impl) == "string" do -- resolve aliases recursively
+		impl = config.commands[impl] or commands.tbl[impl]
+		i = i + 1
+		if i >= 100 then
+			printf(i18n.alias_loop, cmd)
+			break
+		end
+	end
+	if type(impl) == "function" then
+		impl(line, args)
+	else
+		printf([[unknown command "/%s"]], cmd)
+	end
+end
+
+function commands.register(names, fn)
+	for _, name in ipairs(names) do
+		tbl[name] = fn
+	end
+end
+local reg = commands.register
+
+
+reg({"nick"}, function(line, args)
 	local hi = ui.highlight
 	if #args == 0 then
 		printf("your nick is %s", hi(Gs.user))
@@ -25,9 +58,9 @@ commands["nick"] = function(line, args)
 	else
 		print("/nick takes exactly one argument")
 	end
-end
+end)
 
-commands["join"] = function(line, args)
+reg({"join"}, function(line, args)
 	args = util.parsecmd(line, 2)
 	if not Gs.active then
 		print("sorry, you're not connected yet.")
@@ -58,10 +91,9 @@ commands["join"] = function(line, args)
 		last = chan
 	end
 	buffers:switch(last)
-end
--- ["j"] set in default config
+end)
 
-commands["part"] = function(line, args)
+reg({"part", "leave"}, function(line, args)
 	-- TODO /part is inconsistent with /join
 	if #args == 0 then
 		irc.writecmd("PART", Gs.chan)
@@ -70,10 +102,9 @@ commands["part"] = function(line, args)
 			irc.writecmd("PART", v)
 		end
 	end
-end
-commands["leave"] = commands["part"]
+end)
 
-commands["quit"] = function(line, args)
+reg({"quit"}, function(line, args)
 	-- remember all caps when you spell the command's name
 	if args[0] == "QUIT" then
 		args = util.parsecmd(line, 1)
@@ -82,9 +113,9 @@ commands["quit"] = function(line, args)
 	else
 		print(i18n.quit_failsafe)
 	end
-end
+end)
 
-commands["close"] = function(line, args)
+reg({"close"}, function(line, args)
 	local chan = args[1] or Gs.chan
 
 	if buffers:is_special(chan) then
@@ -101,9 +132,9 @@ commands["close"] = function(line, args)
 			Gs.chan = nil
 		end
 	end
-end
+end)
 
-commands["msg"] = function(line, args)
+reg({"msg", "q", "query"}, function(line, args)
 	local args = util.parsecmd(line, 2)
 	if #args == 2 then
 		irc.writecmd("PRIVMSG", args[1], args[2])
@@ -111,21 +142,18 @@ commands["msg"] = function(line, args)
 	else
 		printf("usage: /%s [user] blah blah blah", args[0])
 	end
-end
-commands["q"] = commands["msg"]
-commands["query"] = commands["msg"]
+end)
 
-commands["action"] = function(line, args)
+reg({"action", "me"}, function(line, args)
 	if not Gs.chan then
 		print("you must enter a channel first")
 		return
 	end
 	local content = util.parsecmd(line, 1)[1] or ""
 	irc.writecmd("PRIVMSG", Gs.chan, "\1ACTION "..content.."\1")
-end
-commands["me"] = commands["action"]
+end)
 
-commands["lua"] = function(line, args)
+reg({"lua"}, function(line, args)
 	args = util.parsecmd(line, 1)
 	if #args == 0 then
 		printf("try /%s 2 + 2", args[0])
@@ -146,9 +174,9 @@ commands["lua"] = function(line, args)
 		return
 	end
 	print(err)
-end
+end)
 
-commands["buffers"] = function()
+reg({"buffers", "bufs", "ls"}, function()
 	local total = 0
 	print("You're in:")
 	for k,buf in pairs(Gs.buffers) do
@@ -166,15 +194,13 @@ commands["buffers"] = function()
 		total = total + 1
 	end
 	printf("(%d buffers in total)", total)
-end
-commands["bufs"] = commands["buffers"]
-commands["ls"] = commands["buffers"]
+end)
 
-commands["help"] = function(line, args)
+reg({"help"}, function(line, args)
 	local what = args[1]
 	if what == "cmd" then
 		local aliases = {} -- map from function to its names
-		for k,v in pairs(commands) do
+		for k,v in pairs(tbl) do
 			if not aliases[v] then
 				aliases[v] = {}
 			end
@@ -182,8 +208,8 @@ commands["help"] = function(line, args)
 		end
 		for k,v in pairs(config.commands) do
 			if type(v) == "string" then
-				if commands[v] then -- simple alias
-					table.insert(aliases[commands[v]], "/"..k)
+				if tbl[v] then -- simple alias
+					table.insert(aliases[tbl[v]], "/"..k)
 				end
 			end -- don't care about custom functions
 		end
@@ -194,7 +220,7 @@ commands["help"] = function(line, args)
 			table.sort(v, function(a, b) return #a > #b end)
 			table.insert(aliases_ord, v)
 		end
-		-- sort the commands alphabetically
+		-- sort the tbl alphabetically
 		table.sort(aliases_ord, function(a, b) return a[1] < b[1] end)
 
 		for _,names in ipairs(aliases_ord) do
@@ -228,9 +254,9 @@ commands["help"] = function(line, args)
 		end
 	end
 	print()
-end
+end)
 
-commands["who"] = function(line, args)
+reg({"who", "nicks"}, function(line, args)
 	if #args ~= 0 then
 		printf("/who doesn't support any arguments yet")
 		return
@@ -263,10 +289,10 @@ commands["who"] = function(line, args)
 	if s ~= "" then
 		print(s)
 	end
-end
-commands["nicks"] = commands["who"]
+end)
 
-commands["buffer"] = function(line, args)
+-- "b" set in default config
+reg({"buffer", "buf"}, function(line, args)
 	if #args ~= 1 then
 		printf("/buffer takes exactly one argument")
 		return
@@ -295,20 +321,18 @@ commands["buffer"] = function(line, args)
 			end
 		end
 	end
-end
-commands["buf"] = commands["buffer"]
--- ["b"] set in default config
+end)
 
-commands["topic"] = function(line, args)
+reg({"topic"}, function(line, args)
 	if #args == 0 then
 		irc.writecmd("TOPIC", Gs.chan)
 	else
 		local topic = util.parsecmd(line, 1)[1]
 		irc.writecmd("TOPIC", Gs.chan, topic)
 	end
-end
+end)
 
-commands["list"] = function(line, args)
+reg({"list"}, function(line, args)
 	args = util.parsecmd(line, nil, true)
 	if #args ~= 0 then
 		print([[/list currently doesn't take any arguments]])
@@ -319,9 +343,9 @@ commands["list"] = function(line, args)
 		ext.run(args.pipe, "list")
 	end
 	irc.writecmd("LIST", ">1")
-end
+end)
 
-commands["config"] = function(line, args)
+reg({"config"}, function(line, args)
 	local function execf(...)
 		local cmd = string.format(...)
 		printf("$ %s", cmd)
@@ -370,14 +394,14 @@ commands["config"] = function(line, args)
 	else
 		print("usage: /config [edit]")
 	end
-end
+end)
 
-commands["raw"] = function(line, args)
+reg({"raw"}, function(line, args)
 	args = util.parsecmd(line, 1)
 	irc.writecmd(args[1])
-end
+end)
 
-commands["history"] = function(line, args)
+reg({"history", "his", "h"}, function(line, args)
 	local buf, amt
 	buf = Gs.chan
 	if #args >= 3 then
@@ -406,6 +430,6 @@ commands["history"] = function(line, args)
 		end
 	end
 	buffers:print(buf, amt)
-end
+end)
 
 return commands
