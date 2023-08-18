@@ -28,7 +28,7 @@ hint: if you prefer another editor, try setting the EDITOR environment variable]
 
 i18n.help = {}
 i18n.help.main = [[
-/help cmd      will list all the available commands
+/help /cmd     will give you information about that command
 /help prompt   will explain the [0!0] thing in your prompt
 /help buffers  will explain what buffers are]]
 
@@ -53,8 +53,10 @@ messages in that buffer, so you're up to date on what was happening there.
 You can also list all buffers with "/buffers" or "/ls".]]
 
 i18n.help._unknown = [[
-I'm not sure what "%s" is.
-"/help" with no arguments will list everything that i do know, though]]
+Unknown help topic "%s". Try "/help", with no arguments.]]
+
+i18n.help._unknowncmd = [[
+Unknown command "%s". Try "/help", with no arguments.]]
 
 
 i18n.connecting = [[
@@ -103,22 +105,35 @@ usage: hewwo [-c host] [-p port] [-n nick]
 
 i18n.cmd = {}
 i18n.cmd.help = {}
-i18n.cmd.help.action = [[Send a roleplay message, e.g. "/me jumps into hyperspace".]]
-i18n.cmd.help.buffers = [[List all the open buffers (including channels you left).
+i18n.cmd.help.action = [[
+Send a roleplay message, e.g. "/me jumps into hyperspace".]]
+i18n.cmd.help.buffers = [[
+List all the open buffers (including channels you left).
 See also: /help buffers]]
+i18n.cmd.help.close = [[
+Remove a buffer's stored history, and remove it from the buffer list.]]
 i18n.cmd.help.config = [[Customize hewwo.]]
-i18n.cmd.help.history = [[Display the history of a buffer.]]
+i18n.cmd.help.history = [[Display the history of a buffer.
+
+By default, only the few most recent messages are displayed when you switch to
+another buffer. This lets you read the older (but still limited) history.
+
+This is also useful if you've changed your config and want to see your changes.]]
 i18n.cmd.help.nick = [[Set your own nick (shared across all channels).]]
-i18n.cmd.help.join = [[Joins channel(s). The key is required for private channels.]]
+i18n.cmd.help.join = [[
+Joins channel(s). The key is required for private channels.]]
+i18n.cmd.help.list = [[List all the channels on the server.]]
 i18n.cmd.help.query = [[Send a private message to someone.]]
 i18n.cmd.help.quit = [[Leave all channels and close hewwo.]]
 i18n.cmd.help.who = [[See who's in the current channel.]]
-i18n.cmd.help.topic = [[Read or set topic of current channel.]]
+i18n.cmd.help.topic = [[Read or set the topic of the current channel.]]
 
 i18n.cmd.inline = {}
+i18n.cmd.inline.config = "[edit]"
 i18n.cmd.inline.history = "[buffer] [amount]"
 i18n.cmd.inline.join = "#chan1[,#chan2...] [key]"
+i18n.cmd.inline.list = "[| system command]"
+i18n.cmd.inline.query = "target message"
 i18n.cmd.inline.topic = "[new topic]"
-i18n.cmd.inline.config = "[edit]"
 
 return i18n

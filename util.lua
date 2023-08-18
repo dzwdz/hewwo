@@ -149,4 +149,10 @@ tests.run(function(t)
 	t(util.patescape("oh?"), "oh%?")
 end)
 
+function util.proxycmp(proxy)
+	return function(a, b)
+		return proxy(a) < proxy(b)
+	end
+end
+
 return util

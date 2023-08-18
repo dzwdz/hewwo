@@ -10,6 +10,11 @@ local Gs = require "state"
 commands.tbl = commands.tbl or {}
 local tbl = commands.tbl
 
+local tag = {}
+tag.basic = {}
+tag.devel = {}
+tag.oper = {}
+
 function commands.run(line)
 	local args = util.parsecmd(line)
 	local cmd = string.lower(args[0])
@@ -27,20 +32,74 @@ function commands.run(line)
 	end
 	if type(impl) == "function" then
 		impl(line, args)
+	elseif type(impl) == "table" then
+		impl.fn(line, args)
 	else
 		printf([[unknown command "/%s"]], cmd)
 	end
 end
 
-function commands.register(names, fn)
-	for _, name in ipairs(names) do
-		tbl[name] = fn
+local cmd_metatable = {
+	help = function(self, short)
+		local help, inline
+		for _,name in ipairs(self.names) do
+			help   = help   or i18n.cmd.help[name]
+			inline = inline or i18n.cmd.inline[name]
+		end
+
+		local s = "/" .. self.names[1]
+		if inline then
+			s = s .. " " .. inline
+		end
+		if #self.names > 1 then
+			local nameslash = {}
+			for k,name in ipairs(self.names) do
+				nameslash[k] = "/" .. name
+			end
+			s = string.format("%s  (also %s)", s, table.concat(nameslash, ",", 2))
+		end
+		if help then
+			if short then
+				help = string.gsub(help, "\n.*", " [...]")
+			end
+			help = string.gsub("\n" .. help, "\n", "\n  ") -- indent
+			s = s .. help
+		end
+		return s
 	end
+}
+
+-- compare (sort) alphabetically by the primary name
+local cmdcmp = util.proxycmp(function(cmd) return cmd.names[1] end)
+
+function commands.register(data, fn)
+	local obj = setmetatable({}, {__index=cmd_metatable})
+	local tagged = false
+	obj.fn = fn
+	obj.names = {}
+
+	for _, ent in ipairs(data) do
+		if type(ent) == "string" then
+			table.insert(obj.names, ent)
+			tbl[ent] = obj
+		elseif type(ent) == "table" then
+			-- it's a tag
+			table.insert(ent, obj)
+			table.sort(ent, cmdcmp)
+			tagged = true
+		end
+	end
+	if not tagged then
+		error(string.format("%q lacks tags", obj.names[1]))
+	end
+
+	table.insert(tbl, obj)
+	-- keep commands.tbl sorted at all times for /help purposes
+	table.sort(tbl, cmdcmp)
 end
 local reg = commands.register
 
-
-reg({"nick"}, function(line, args)
+reg({"nick", tag.basic}, function(line, args)
 	local hi = ui.highlight
 	if #args == 0 then
 		printf("your nick is %s", hi(Gs.user))
@@ -60,7 +119,7 @@ reg({"nick"}, function(line, args)
 	end
 end)
 
-reg({"join"}, function(line, args)
+reg({"join", tag.basic}, function(line, args)
 	args = util.parsecmd(line, 2)
 	if not Gs.active then
 		print("sorry, you're not connected yet.")
@@ -93,7 +152,7 @@ reg({"join"}, function(line, args)
 	buffers:switch(last)
 end)
 
-reg({"part", "leave"}, function(line, args)
+reg({"part", "leave", tag.basic}, function(line, args)
 	-- TODO /part is inconsistent with /join
 	if #args == 0 then
 		irc.writecmd("PART", Gs.chan)
@@ -104,7 +163,7 @@ reg({"part", "leave"}, function(line, args)
 	end
 end)
 
-reg({"quit"}, function(line, args)
+reg({"quit", tag.basic}, function(line, args)
 	-- remember all caps when you spell the command's name
 	if args[0] == "QUIT" then
 		args = util.parsecmd(line, 1)
@@ -115,7 +174,7 @@ reg({"quit"}, function(line, args)
 	end
 end)
 
-reg({"close"}, function(line, args)
+reg({"close", tag.basic}, function(line, args)
 	local chan = args[1] or Gs.chan
 
 	if buffers:is_special(chan) then
@@ -134,7 +193,7 @@ reg({"close"}, function(line, args)
 	end
 end)
 
-reg({"msg", "q", "query"}, function(line, args)
+reg({"msg", "q", "query", tag.basic}, function(line, args)
 	local args = util.parsecmd(line, 2)
 	if #args == 2 then
 		irc.writecmd("PRIVMSG", args[1], args[2])
@@ -144,7 +203,7 @@ reg({"msg", "q", "query"}, function(line, args)
 	end
 end)
 
-reg({"action", "me"}, function(line, args)
+reg({"action", "me", tag.basic}, function(line, args)
 	if not Gs.chan then
 		print("you must enter a channel first")
 		return
@@ -153,7 +212,7 @@ reg({"action", "me"}, function(line, args)
 	irc.writecmd("PRIVMSG", Gs.chan, "\1ACTION "..content.."\1")
 end)
 
-reg({"lua"}, function(line, args)
+reg({"lua", tag.devel}, function(line, args)
 	args = util.parsecmd(line, 1)
 	if #args == 0 then
 		printf("try /%s 2 + 2", args[0])
@@ -176,7 +235,7 @@ reg({"lua"}, function(line, args)
 	print(err)
 end)
 
-reg({"buffers", "bufs", "ls"}, function()
+reg({"buffers", "bufs", "ls", tag.basic}, function()
 	local total = 0
 	print("You're in:")
 	for k,buf in pairs(Gs.buffers) do
@@ -196,54 +255,22 @@ reg({"buffers", "bufs", "ls"}, function()
 	printf("(%d buffers in total)", total)
 end)
 
-reg({"help"}, function(line, args)
+reg({"help", tag.basic}, function(line, args)
 	local what = args[1]
-	if what == "cmd" then
-		local aliases = {} -- map from function to its names
-		for k,v in pairs(tbl) do
-			if not aliases[v] then
-				aliases[v] = {}
-			end
-			table.insert(aliases[v], "/"..k)
-		end
-		for k,v in pairs(config.commands) do
-			if type(v) == "string" then
-				if tbl[v] then -- simple alias
-					table.insert(aliases[tbl[v]], "/"..k)
-				end
-			end -- don't care about custom functions
-		end
+	printf("-- %s", line)
 
-		local aliases_ord = {} -- list of those names
-		for _,v in pairs(aliases) do
-			-- sort by length descending. the longest alias is the primary one
-			table.sort(v, function(a, b) return #a > #b end)
-			table.insert(aliases_ord, v)
+	if what == nil then
+		for _, cmd in ipairs(tbl) do
+			print(cmd:help(true))
 		end
-		-- sort the tbl alphabetically
-		table.sort(aliases_ord, function(a, b) return a[1] < b[1] end)
-
-		for _,names in ipairs(aliases_ord) do
-			local help, inline
-			for _,alias in ipairs(names) do
-				alias = string.sub(alias, 2) -- strip slash
-				help = help or i18n.cmd.help[alias]
-				inline = inline or i18n.cmd.inline[alias]
-			end
-
-			local s = names[1]
-			if inline then
-				s = s .. " " .. inline
-			end
-			if #names > 1 then
-				s = string.format("%s  (also %s)", s, table.concat(names, ",", 2))
-			end
-			print(s)
-			if help then
-				-- TODO /help /command to view the entire help string
-				help = string.gsub(help, "\n.*", " [...]")
-				print("  "..help)
-			end
+		print()
+		print(i18n.help.main)
+	elseif string.match(what, "^/") then
+		local cmd = tbl[string.sub(what, 2)]
+		if cmd then
+			print(cmd:help(false))
+		else
+			printf(i18n.help._unknowncmd, what)
 		end
 	else
 		local s = i18n.help[what or "main"]
@@ -251,12 +278,15 @@ reg({"help"}, function(line, args)
 			print(s)
 		else
 			printf(i18n.help._unknown, what)
+			if tbl[what] then
+				printf([[Did you mean "/help /%s"?]], what)
+			end
 		end
 	end
 	print()
 end)
 
-reg({"who", "nicks"}, function(line, args)
+reg({"who", "nicks", tag.basic}, function(line, args)
 	if #args ~= 0 then
 		printf("/who doesn't support any arguments yet")
 		return
@@ -292,7 +322,7 @@ reg({"who", "nicks"}, function(line, args)
 end)
 
 -- "b" set in default config
-reg({"buffer", "buf"}, function(line, args)
+reg({"buffer", "buf", tag.basic}, function(line, args)
 	if #args ~= 1 then
 		printf("/buffer takes exactly one argument")
 		return
@@ -323,7 +353,7 @@ reg({"buffer", "buf"}, function(line, args)
 	end
 end)
 
-reg({"topic"}, function(line, args)
+reg({"topic", tag.oper}, function(line, args)
 	if #args == 0 then
 		irc.writecmd("TOPIC", Gs.chan)
 	else
@@ -332,7 +362,7 @@ reg({"topic"}, function(line, args)
 	end
 end)
 
-reg({"list"}, function(line, args)
+reg({"list", tag.basic}, function(line, args)
 	args = util.parsecmd(line, nil, true)
 	if #args ~= 0 then
 		print([[/list currently doesn't take any arguments]])
@@ -345,7 +375,7 @@ reg({"list"}, function(line, args)
 	irc.writecmd("LIST", ">1")
 end)
 
-reg({"config"}, function(line, args)
+reg({"config", tag.basic}, function(line, args)
 	local function execf(...)
 		local cmd = string.format(...)
 		printf("$ %s", cmd)
@@ -396,12 +426,12 @@ reg({"config"}, function(line, args)
 	end
 end)
 
-reg({"raw"}, function(line, args)
+reg({"raw", tag.devel}, function(line, args)
 	args = util.parsecmd(line, 1)
 	irc.writecmd(args[1])
 end)
 
-reg({"history", "his", "h"}, function(line, args)
+reg({"history", "his", "h", tag.basic}, function(line, args)
 	local buf, amt
 	buf = Gs.chan
 	if #args >= 3 then

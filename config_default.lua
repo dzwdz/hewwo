@@ -45,8 +45,3 @@ config.port = "6667" -- must be a string
 -- command aliases
 config.commands["b"] = "buffer" -- alias /b to /buffer
 config.commands["j"] = "join"
-
--- Custom commands. This is a "power user"-only feature, and custom commands
--- might and will break on any updates (which will happen). You're on your own
--- here.
-config.commands["echo"] = function(line, args) print(line) end
