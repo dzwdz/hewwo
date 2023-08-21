@@ -7,12 +7,8 @@ local util = require "util"
 local Gs = require "state"
 
 -- Prints an IRC command.
-function ui.printcmd(ent, urgent_buf)
-	-- compat with the old arguments
-	local rawline = ent.line
-	local ts = ent.ts
-
-	local args = irc.parsecmd(rawline)
+function ui.printcmd(ent)
+	local args = irc.parsecmd(ent.line)
 	local from = args.user
 	local cmd = string.upper(args[1])
 	local to = args[2] -- not always valid!
@@ -20,15 +16,17 @@ function ui.printcmd(ent, urgent_buf)
 	local fmt = ui.ircformat
 	local hi = ui.highlight
 
-	local clock = os.date(config.timefmt, ts)
+	local clock = os.date(config.timefmt, ent.ts)
 	if config.color.clock then
 		-- wrap the clock in ANSI color codes iff the user specified a color
 		clock = string.format("\x1b[%sm%s\x1b[0m", config.color.clock, clock)
 	end
 
-	local prefix = clock
-	if urgent_buf then
-		prefix = string.format("%s%s: ", prefix, urgent_buf)
+	-- TODO possibly nochan should be the default
+	local prefix_nochan = clock
+	local prefix        = clock
+	if ent.buf and not buffers:is_visible(ent.buf) then
+		prefix = string.format("%s%s: ", prefix_nochan, ent.buf)
 	end
 
 	if cmd == "PRIVMSG" or cmd == "NOTICE" then
@@ -53,10 +51,7 @@ function ui.printcmd(ent, urgent_buf)
 		msg = string.gsub(msg, util.nick_pattern(Gs.user), hi(Gs.user, "mention1"))
 
 		if private then
-			-- the original prefix might also include the buffer,
-			-- which is redundant
-			prefix = clock
-
+			prefix = prefix_nochan
 			if notice then
 				userpart = string.format("-%s:%s-", hi(from), hi(to))
 			elseif action then
@@ -103,24 +98,24 @@ function ui.printcmd(ent, urgent_buf)
 			ui.hint(i18n.hint.query, from)
 		end
 	elseif cmd == "JOIN" then
-		printf("%s--> %s has joined %s", prefix, hi(from), to)
+		printf("%s--> %s has joined %s", prefix_nochan, hi(from), to)
 	elseif cmd == "PART" then
-		printf("%s<-- %s has left %s", prefix, hi(from), to)
+		printf("%s<-- %s has left %s", prefix_nochan, hi(from), to)
 	elseif cmd == "KICK" then
-		printf("%s-- %s kicked %s from %s (%s)", prefix, hi(from), hi(args[3]), args[2], args[4] or "")
+		printf("%s-- %s kicked %s from %s (%s)", prefix_nochan, hi(from), hi(args[3]), args[2], args[4] or "")
 	elseif cmd == "INVITE" then
-		printf("%s%s has invited you to %s", prefix, hi(from), args[3])
+		printf("%s%s has invited you to %s", prefix_nochan, hi(from), args[3])
 	elseif cmd == "QUIT" then
 		printf("%s<-- %s has quit (%s)", prefix, hi(from), fmt(args[2]))
 	elseif cmd == "NICK" then
 		printf("%s%s is now known as %s", prefix, hi(from), hi(to))
 	elseif cmd == irc.RPL_TOPIC then
 		-- Sent when joining a channel
-		printf([[%s-- %s's topic is "%s"]], prefix, args[3], fmt(args[4]))
+		printf([[%s-- %s's topic is "%s"]], prefix_nochan, args[3], fmt(args[4]))
 	elseif cmd == "TOPIC" then
 		printf(
 			[[%s%s changed %s's topic from "%s" to "%s"]],
-			prefix,
+			prefix_nochan,
 			hi(from),
 			to,
 			ent.oldtopic or "",
@@ -129,6 +124,8 @@ function ui.printcmd(ent, urgent_buf)
 	elseif cmd == irc.RPL_LIST then
 		if ext.reason == "list" then
 			prefix = "" -- don't include the hour
+		else
+			prefix = prefix_nochan
 		end
 		if args[5] ~= "" then
 			printf([[%s%s, %s users, %s]], prefix, args[3], args[4], fmt(args[5]))

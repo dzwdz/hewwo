@@ -113,14 +113,6 @@ function cback.init(...)
 	Gs.chan = nil
 
 	buffers:make(":mentions")
-	Gs.buffers[":mentions"].printcmd = function (self, ent)
-		ui.printcmd(ent, ent.buf)
-	end
-	Gs.buffers[":mentions"].onswitch = function (self)
-		for _,v in pairs(Gs.buffers) do
-			v.mentions = 0
-		end
-	end
 end
 
 function cback.disconnected()

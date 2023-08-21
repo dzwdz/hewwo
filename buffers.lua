@@ -40,29 +40,24 @@ function buffers:push(bufs, line, ent)
 	ent.line = line
 	ent.ts = os.time()
 	local urgency = ent.urgency or 0
-	local forceshow = ent.forceshow or urgency >= 1
-	if ent.display ~= nil then error("used deprecated field") end
 
 	-- note: bufs can sometimes be empty, e.g. when running /QUIT or /NICK
 	--       when not in any channels.
 	if type(bufs) ~= "table" then bufs = {bufs} end
-	local mainbuf = bufs[1]
-
+	if #bufs == 1 then
+		ent.buf = bufs[1]
+	end
 	if urgency >= 2 then
-		-- TODO refactor this to be less spaghetti
-		ent.buf = mainbuf
-		Gs.buffers[":mentions"]:push(ent)
+		table.insert(bufs, ":mentions")
 	end
 
-	local visible = false
+	local visible = ent.forceshow or urgency >= 1
+	-- has to be checked before updating buffers
 	for _,name in ipairs(bufs) do
 		visible = visible or buffers:is_visible(name)
 	end
-
 	if visible then
 		ui.printcmd(ent)
-	elseif forceshow then
-		ui.printcmd(ent, mainbuf)
 	end
 
 	for _,name in ipairs(bufs) do
@@ -71,14 +66,14 @@ function buffers:push(bufs, line, ent)
 		b:push(ent)
 		if not buffers:is_visible(name) then
 			if urgency >= 0 then
-				if b.unread == 0 and not visible and not forceshow then
-					-- print first message in unread channel
+				if b.unread == 0 and not visible then
+					-- print first new message in unread channel
 					ui.hint(i18n.hint.msg_in_unread)
-					ui.printcmd(ent, name)
+					ui.printcmd(ent)
 				end
 				b.unread = b.unread + 1
 			end
-			if urgency >= 1 and not buffers:is_visible(":mentions") then
+			if urgency >= 1 then
 				b.mentions = b.mentions + 1
 			end
 		end
@@ -118,13 +113,7 @@ function buffers:print(name, count)
 		-- 49 <= 50 - 2  false
 		-- 48 <= 50 - 2  true
 		if not (count and k <= #t - count) then
-			if buf.printcmd then
-				-- XXX this is the only place where buf:printcmd is respected
-				-- currently this is fine, but broadly it isn't
-				buf:printcmd(ent)
-			else
-				ui.printcmd(ent)
-			end
+			ui.printcmd(ent)
 		end
 	end
 end
