@@ -410,6 +410,9 @@ reg({"config", tag.basic}, function(line, args)
 		end
 
 		local editor = os.getenv("EDITOR") or "nano"
+		if editor == "" then
+			editor = "nano"
+		end
 		local cmd = string.format([[%s "%s"]], editor, path[1])
 		ext.run(cmd, "/config edit", {
 			callback = function ()

@@ -107,7 +107,7 @@ function irc.newcmd(line, remote)
 				if string.match(msg, util.nick_pattern(Gs.user)) then
 					buffers:push(to, line, {urgency=2})
 				elseif from == Gs.user then
-					buffers:push(to, line, {display=1})
+					buffers:push(to, line, {forceshow=true})
 				else
 					buffers:push(to, line)
 				end
@@ -136,33 +136,26 @@ function irc.newcmd(line, remote)
 	elseif cmd == "INVITE" then
 		buffers:push(from, line, {urgency=2})
 	elseif cmd == "QUIT" then
-		local display = 0
-		if from == Gs.user then
-			-- print manually
-			display = -1
-			ui.printcmd({line=line, ts=os.time()})
-		end
+		local forceshow = (from == Gs.user)
+		local bufs = {}
 		for chan,buf in pairs(Gs.buffers) do
 			if buf.users[from] then
-				buffers:push(chan, line, {display=display, urgency=-1})
+				table.insert(bufs, chan)
 				buf.users[from] = nil
 			end
 		end
+		buffers:push(bufs, line, {forceshow=forceshow, urgency=-1})
 	elseif cmd == "NICK" then
-		local display = 0
-		if from == Gs.user then
-			Gs.user = to
-			-- print manually
-			display = -1
-			ui.printcmd({line=line, ts=os.time()})
-		end
+		local forceshow = (from == Gs.user)
+		local bufs = {}
 		for chan,buf in pairs(Gs.buffers) do
 			if buf.users[from] then
-				buffers:push(chan, line, {display=display, urgency=-1})
+				table.insert(bufs, chan)
 				buf.users[from] = nil
 				buf.users[to] = true
 			end
 		end
+		buffers:push(bufs, line, {forceshow=forceshow, urgency=-1})
 	elseif cmd == irc.RPL_ISUPPORT then
 		for i=3,(#args-1) do
 			local token = args[i]
@@ -185,9 +178,8 @@ function irc.newcmd(line, remote)
 		Gs.topics[args[3]] = args[4]
 		buffers:push(args[3], line, {urgency=-1})
 	elseif cmd == "TOPIC" then
-		local display = 0
-		if from == Gs.user then display = 1 end
-		buffers:push(to, line, {display=display, oldtopic=Gs.topics[to]})
+		local forceshow = (from == Gs.user)
+		buffers:push(to, line, {forceshow=forceshow, oldtopic=Gs.topics[to]})
 		Gs.topics[to] = args[3]
 	elseif cmd == irc.RPL_LIST or cmd == irc.RPL_LISTEND then
 		-- TODO list output should probably be pushed into a server buffer
