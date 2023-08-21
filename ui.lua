@@ -7,7 +7,7 @@ local util = require "util"
 local Gs = require "state"
 
 -- Prints an IRC command.
-function ui.printcmd(ent)
+function ui.printcmd(ent, current)
 	local args = irc.parsecmd(ent.line)
 	local from = args.user
 	local cmd = string.upper(args[1])
@@ -24,7 +24,11 @@ function ui.printcmd(ent)
 
 	-- TODO possibly nochan should be the default
 	local prefix_nochan = clock
-	local prefix        = clock
+	if ent.urgency and ent.urgency >= 1 and config.bell and current then
+		prefix_nochan = "\x07" .. prefix_nochan
+	end
+
+	local prefix = prefix_nochan
 	if ent.buf and not buffers:is_visible(ent.buf) then
 		prefix = string.format("%s%s: ", prefix_nochan, ent.buf)
 	end

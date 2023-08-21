@@ -30,7 +30,7 @@ bufs: (a table of) target buffer names
 ent.urgency:
 	-1 don't bump unread
 	 0 bump unread
-	 1 bump mentions
+	 1 bump mentions and bell
 	 2 push to :mentions
 
 ent.forceshow : boolean
@@ -57,7 +57,7 @@ function buffers:push(bufs, line, ent)
 		visible = visible or buffers:is_visible(name)
 	end
 	if visible then
-		ui.printcmd(ent)
+		ui.printcmd(ent, true)
 	end
 
 	for _,name in ipairs(bufs) do
@@ -69,7 +69,7 @@ function buffers:push(bufs, line, ent)
 				if b.unread == 0 and not visible then
 					-- print first new message in unread channel
 					ui.hint(i18n.hint.msg_in_unread)
-					ui.printcmd(ent)
+					ui.printcmd(ent, true)
 				end
 				b.unread = b.unread + 1
 			end

@@ -14,6 +14,8 @@ if os.getenv("NO_COLOR") then config.color = {} end -- https://no-color.org
 
 -- 0= don't, 1= invert your nick, 2= invert the sender's nick, 3= both
 config.invert_mentions = 2
+-- "bell" the terminal on mentions?
+config.bell = true
 
 config.timefmt = "%H:%M "
 
