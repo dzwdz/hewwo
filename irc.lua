@@ -146,8 +146,12 @@ function irc.newcmd(line, remote)
 		end
 		buffers:push(bufs, line, {forceshow=forceshow, urgency=-1})
 	elseif cmd == "NICK" then
-		local forceshow = (from == Gs.user)
+		local forceshow = false
 		local bufs = {}
+		if from == Gs.user then
+			forceshow = true
+			Gs.user = to
+		end
 		for chan,buf in pairs(Gs.buffers) do
 			if buf.users[from] then
 				table.insert(bufs, chan)
