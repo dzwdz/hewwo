@@ -2,6 +2,7 @@ local ui = safeinit(...)
 
 local Gs = require "state"
 local buffers = require "buffers"
+local config = require "config"
 local i18n = require "i18n"
 local irc = require "irc"
 local util = require "util"

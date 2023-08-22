@@ -1,15 +1,20 @@
+local config = init_config()
+
 -- If you need a reference, "/config" will output the location of the default
 -- config on your system.
 -- Also, https://github.com/dzwdz/hewwo/blob/main/config_default.lua
 
 -- Feel free to remove any part of this, the default config is loaded before
 -- this file. It only got copied over to make it easier for you to make changes.
+-- The only exceptions are the first line (with init_config) and the last line
+-- (with a return).
+
 
 config.nick = os.getenv("USER")
 
 config.color.nicks = {"31", "32", "33", "34", "35", "36"}
 -- config.color.nicks = {"36", "35", "32", "33", "34;1", -- Weechat colorscheme
---                       "0", "36;1", "35;1", "32;1", "34"} 
+--                       "0", "36;1", "35;1", "32;1", "34"}
 config.color.clock = "38;5;8"
 config.color.in_messages = true
 if os.getenv("NO_COLOR") then config.color = {} end -- https://no-color.org
@@ -49,3 +54,5 @@ config.port = "6667" -- must be a string
 -- command aliases
 config.commands["b"] = "buffer" -- alias /b to /buffer
 config.commands["j"] = "join"
+
+return config

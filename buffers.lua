@@ -1,6 +1,7 @@
 local buffers = safeinit(...)
 
 local Gs = require "state"
+local config = require "config"
 local i18n = require "i18n"
 local ringbuf = require "ringbuf"
 local ui = require "ui"

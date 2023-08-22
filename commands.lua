@@ -1,11 +1,12 @@
 local commands = safeinit(...)
 
+local Gs = require "state"
 local buffers = require "buffers"
+local config = require "config"
 local i18n = require "i18n"
 local irc = require "irc"
 local ui = require "ui"
 local util = require "util"
-local Gs = require "state"
 
 commands.tbl = commands.tbl or {}
 local tbl = commands.tbl

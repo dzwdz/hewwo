@@ -9,11 +9,29 @@ function safeinit(name)
 end
 
 
+local cfg_loading = false
+__config = __config or {}
+function init_config()
+	if not cfg_loading then
+		cfg_loading = true
+		local cfg = require("config_default") -- calls us recursively
+		cfg_loading = false
+		return cfg
+	else
+		local cfg = __config
+		cfg.ident = {}
+		cfg.color = {}
+		cfg.commands = {}
+		return cfg
+	end
+end
+
 -- "capi" is provided by C
 local Gs = require "state"
 local argv = require "argv"
 local buffers = require "buffers"
 local commands = require "commands"
+local config = require "config"
 local i18n = require "i18n"
 local irc = require "irc"
 local ringbuf = require "ringbuf"

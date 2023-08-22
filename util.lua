@@ -96,12 +96,6 @@ end)
 function util.config_load()
 	package.loaded.config = nil
 	package.loaded.config_default = nil
-
-	config = {}
-	config.ident = {}
-	config.color = {}
-	config.commands = {}
-	require "config_default"
 	local succ, res = xpcall(require, debug.traceback, "config")
 	if not succ then
 		print(res)
