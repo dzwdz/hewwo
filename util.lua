@@ -3,14 +3,6 @@ local util = safeinit(...)
 local i18n = require "i18n"
 local tests = require "tests"
 
-function util.djb2(s)
-	local hash = 5381|0
-	for _,c in ipairs({string.byte(s, 1, -1)}) do
-		hash = hash * 31 + c
-	end
-	return hash
-end
-
 -- for mentions
 function util.nick_pattern(nick)
 	-- TODO only works with alphanumeric nicks

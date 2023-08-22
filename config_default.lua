@@ -8,6 +8,8 @@
 config.nick = os.getenv("USER")
 
 config.color.nicks = {"31", "32", "33", "34", "35", "36"}
+-- config.color.nicks = {"36", "35", "32", "33", "34;1", -- Weechat colorscheme
+--                       "0", "36;1", "35;1", "32;1", "34"} 
 config.color.clock = "38;5;8"
 config.color.in_messages = true
 if os.getenv("NO_COLOR") then config.color = {} end -- https://no-color.org

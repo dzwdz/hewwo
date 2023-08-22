@@ -1,10 +1,10 @@
 local ui = safeinit(...)
 
+local Gs = require "state"
 local buffers = require "buffers"
 local i18n = require "i18n"
 local irc = require "irc"
 local util = require "util"
-local Gs = require "state"
 
 -- Prints an IRC command.
 function ui.printcmd(ent, current)
@@ -150,6 +150,34 @@ function ui.updateprompt()
 	capi.setprompt(string.format("[%d!%d %s]: ", unread, mentions, chan))
 end
 
+
+--- A nick hashing function compatible with Weechat's default.
+local function weehash(str, mod)
+	-- the djb2 variant used by Weechat for hashing nicks
+	local h = 5381|0 -- force int
+	for _,c in utf8.codes(str) do
+		-- yes, the hash iterates over utf8 codepoints and not bytes.
+		h = h ~ ((h << 5) + (h >> 2) + c)
+	end
+
+	if mod then
+		-- Weechat calculates the modulo on an uint64, but Lua's integers are
+		-- signed, so I have to emulate unsigned modulo.
+		if h < 0 then
+			h = h & 0x7FFFFFFFFFFFFFFF
+			-- to make this correct, we need to add (1<<63 % m)
+			-- 1<<63 % m = (2 * (1<<62 % m)) % m
+			--             (2 * (1<<62 % m)) < 2 * m
+			h = h - 2 * mod -- prevent overflow when adding the remainder
+			h = h + (2 * ((1<<62) % mod))
+		end
+		h = h % mod
+	end
+
+	return h
+end
+
+
 function ui.highlight(s, what)
 	if not s then return "" end
 	local mods = {}
@@ -159,7 +187,7 @@ function ui.highlight(s, what)
 	if what == "nick" or what == "mention1" or what == "mention2" then
 		-- it's a person!
 		if colors and #colors > 0 then
-			local cid = util.djb2(s) % #colors
+			local cid = weehash(s, #colors)
 			table.insert(mods, colors[cid+1])
 		end
 		if what == "mention1" and (config.invert_mentions&1 == 1) then
