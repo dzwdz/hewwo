@@ -16,10 +16,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/param.h>
 #include <sys/select.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+#define MAX(a, b) ((a)<(b)?(b):(a))
 
 static void cback_arr(char *name, int nresults, int nargs, const char *args[]);
 static void cback(char *name, int nresults, const char *arg);
